@@ -1,0 +1,17 @@
+# Dépendances
+node_modules/
+
+# Sorties de build (electron-builder)
+dist/
+build/
+out/
+
+# IP/port réels des serveurs (sensible avec l'auth offline + whitelist).
+# Voir servers.ip.example.json pour le format.
+servers.ip.json
+
+# Divers
+*.log
+.env
+.DS_Store
+Thumbs.db

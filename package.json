@@ -1,0 +1,45 @@
+{
+  "name": "apo-launcher",
+  "version": "0.1.0",
+  "description": "Launcher custom multi-serveurs pour jouer avec les potes",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "author": "Apo",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.3.0",
+    "adm-zip": "^0.5.10",
+    "node-fetch": "^2.7.0",
+    "minecraft-launcher-core": "^3.18.1"
+  },
+  "build": {
+    "appId": "com.apo.launcher",
+    "productName": "Apo Launcher",
+    "win": {
+      "target": "nsis",
+      "icon": "src/assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*"
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "TON-PSEUDO-GITHUB",
+      "repo": "apo-launcher"
+    }
+  }
+}
