@@ -10,7 +10,7 @@ let musicStarted = false;
 function startMusicOnce() {
   if (musicStarted) return;
   musicStarted = true;
-  music.volume = 0.4;
+  music.volume = 0.3;
   music.play().catch(() => {}); // ignore si le fichier n'existe pas encore
   document.removeEventListener('click', startMusicOnce);
 }
