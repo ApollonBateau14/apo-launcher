@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('api', {
 
   getServers: () => ipcRenderer.invoke('get-servers'),
   setSelectedServer: (serverId) => ipcRenderer.invoke('set-selected-server', serverId),
+  updateServerIp: (serverId, ip, port) => ipcRenderer.invoke('update-server-ip', { serverId, ip, port }),
+  addServer: (serverData) => ipcRenderer.invoke('add-server', serverData),
 
   pingServer: () => ipcRenderer.invoke('ping-server'),
   checkModpack: () => ipcRenderer.invoke('check-modpack'),

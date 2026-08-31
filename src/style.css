@@ -194,7 +194,10 @@ html {
 
 .server-card {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   padding: 10px 14px;
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.2);
@@ -207,8 +210,74 @@ html {
   background: rgba(120,180,255,0.25);
   border-color: rgba(150,200,255,0.6);
 }
+.server-card-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 .server-card .server-name { font-size: 14px; font-weight: 600; }
 .server-card .server-desc { font-size: 11px; opacity: 0.65; margin-top: 2px; }
+
+.server-edit-btn {
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  border-radius: 8px;
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.server-edit-btn:hover { background: rgba(255,255,255,0.28); }
+
+.server-add-btn {
+  width: 100%;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.server-add-btn:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.55);
+  color: #fff;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,8,20,0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.modal-overlay.active { display: flex; }
+
+.modal {
+  width: 300px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-field-row { margin-bottom: 12px; }
+.modal-field-row label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.65;
+  margin-bottom: 4px;
+}
 
 .server-status {
   display: flex;

@@ -21,27 +21,50 @@ const SERVERS_META = [
   }
 ];
 
-// Lit servers.ip.json (fichier local, jamais commité) et fusionne l'IP/port
-// avec les métadonnées ci-dessus. Sensible avec l'auth offline + whitelist :
-// si ce fichier est public, n'importe qui peut se connecter avec un pseudo whitelisté.
-function buildServersList() {
+function loadServerIps() {
   const ipFile = path.join(__dirname, 'servers.ip.json');
-  let ips = {};
-  if (fs.existsSync(ipFile)) {
-    try {
-      ips = JSON.parse(fs.readFileSync(ipFile, 'utf-8'));
-    } catch (err) {
-      console.error('[ApoLauncher] servers.ip.json invalide :', err.message);
-    }
-  } else {
+  if (!fs.existsSync(ipFile)) {
     console.warn('[ApoLauncher] servers.ip.json introuvable — copie servers.ip.example.json et renseigne tes IP.');
+    return {};
   }
+  try {
+    return JSON.parse(fs.readFileSync(ipFile, 'utf-8'));
+  } catch (err) {
+    console.error('[ApoLauncher] servers.ip.json invalide :', err.message);
+    return {};
+  }
+}
 
-  return SERVERS_META.map((server) => ({
-    ...server,
-    ip: ips[server.id]?.ip || '',
-    port: ips[server.id]?.port || 25565
-  }));
+// Fusionne les métadonnées du code (toujours à jour) avec l'IP/port :
+// - si déjà modifiée en jeu (bouton ⚙, persisté dans le store) → gardée telle quelle
+// - sinon reprise de servers.ip.json (fichier local, jamais commité)
+// Les serveurs ajoutés depuis l'appli ("+ Ajouter un serveur") ne sont pas dans
+// SERVERS_META : ils sont conservés tels quels depuis le store persistant.
+function buildServersList() {
+  const ips = loadServerIps();
+  const persisted = store.get('servers', []);
+  const persistedById = Object.fromEntries(persisted.map((s) => [s.id, s]));
+  const codeIds = new Set(SERVERS_META.map((s) => s.id));
+
+  const codeServers = SERVERS_META.map((meta) => {
+    const prev = persistedById[meta.id];
+    return {
+      ...meta,
+      ip: prev?.ip || ips[meta.id]?.ip || '',
+      port: prev?.port || ips[meta.id]?.port || 25565
+    };
+  });
+
+  const customServers = persisted.filter((s) => !codeIds.has(s.id));
+
+  return [...codeServers, ...customServers];
+}
+
+const DIACRITICS_REGEX = new RegExp('[' + String.fromCharCode(0x0300) + '-' + String.fromCharCode(0x036f) + ']', 'g');
+
+function slugify(text) {
+  const withoutAccents = text.toLowerCase().normalize('NFD').replace(DIACRITICS_REGEX, '');
+  return withoutAccents.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'serveur';
 }
 
 const store = new Store({
@@ -52,8 +75,8 @@ const store = new Store({
   }
 });
 
-// Recalculé à chaque démarrage : l'IP/port viennent toujours de servers.ip.json
-// (jamais d'IP périmée gardée dans le store persistant d'une session précédente).
+// Recalculé à chaque démarrage pour que les métadonnées du code (nom, loader,
+// manifest…) restent à jour, sans perdre les IP/serveurs ajoutés en jeu.
 store.set('servers', buildServersList());
 
 let mainWindow;
@@ -113,6 +136,43 @@ ipcMain.handle('set-selected-server', (_e, serverId) => {
   return true;
 });
 
+// ---- IPC: modifier l'IP/port d'un serveur (bouton ⚙ dans la liste) ----
+ipcMain.handle('update-server-ip', (_e, { serverId, ip, port }) => {
+  const servers = store.get('servers', []);
+  const server = servers.find((s) => s.id === serverId);
+  if (!server) return false;
+  server.ip = ip;
+  server.port = port;
+  store.set('servers', servers);
+  return true;
+});
+
+// ---- IPC: ajouter un serveur depuis l'appli (bouton "+ Ajouter un serveur") ----
+ipcMain.handle('add-server', (_e, data) => {
+  const servers = store.get('servers', []);
+  const baseId = slugify(data.name || '');
+  let id = baseId;
+  let suffix = 2;
+  while (servers.some((s) => s.id === id)) {
+    id = `${baseId}-${suffix++}`;
+  }
+
+  const newServer = {
+    id,
+    name: data.name || id,
+    description: data.description || '',
+    loader: data.loader || 'vanilla',
+    mcVersion: data.mcVersion || '',
+    loaderVersion: data.loaderVersion || '',
+    manifestUrl: data.manifestUrl || '',
+    ip: data.ip || '',
+    port: Number(data.port) || 25565
+  };
+  servers.push(newServer);
+  store.set('servers', servers);
+  return newServer;
+});
+
 function getSelectedServer() {
   const servers = store.get('servers');
   const selectedId = store.get('selectedServerId');
@@ -122,6 +182,9 @@ function getSelectedServer() {
 // ---- IPC: statut serveur sélectionné (online/max joueurs/ping) ----
 ipcMain.handle('ping-server', async () => {
   const server = getSelectedServer();
+  if (!server.ip) {
+    return { online: false, error: 'IP non configurée — clique sur ⚙ pour la renseigner.' };
+  }
   try {
     return await pingServer(server.ip, server.port);
   } catch (err) {
@@ -139,5 +202,8 @@ ipcMain.handle('check-modpack', async () => {
 ipcMain.handle('launch-game', async () => {
   const { username, ramMb } = store.store;
   const server = getSelectedServer();
+  if (!server.ip) {
+    return { success: false, error: 'IP non configurée pour ce serveur — clique sur ⚙ pour la renseigner.' };
+  }
   return launchGame({ username, ramMb, server });
 });

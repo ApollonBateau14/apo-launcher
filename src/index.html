@@ -51,6 +51,7 @@
         <div class="server-list" id="server-list">
           <!-- rempli dynamiquement en JS, une carte par serveur -->
         </div>
+        <button class="server-add-btn" id="add-server-btn">+ Ajouter un serveur</button>
 
         <div class="server-status" id="server-status">
           <span class="status-dot" id="status-dot"></span>
@@ -78,6 +79,18 @@
           <button class="btn" id="save-settings-btn">Enregistrer</button>
         </div>
       </section>
+    </div>
+  </div>
+
+  <!-- Modal générique (modifier l'IP d'un serveur / en ajouter un) -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="glass-panel modal">
+      <p class="panel-title" id="modal-title">Modifier le serveur</p>
+      <div id="modal-fields"></div>
+      <div class="btn-row">
+        <button class="btn" id="modal-cancel-btn">Annuler</button>
+        <button class="btn primary" id="modal-save-btn">Enregistrer</button>
+      </div>
     </div>
   </div>
 

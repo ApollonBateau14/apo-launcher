@@ -59,10 +59,30 @@ async function loadServerList() {
   servers.forEach((server) => {
     const card = document.createElement('div');
     card.className = 'server-card' + (server.id === settings.selectedServerId ? ' selected' : '');
-    card.innerHTML = `
-      <span class="server-name">${server.name}</span>
-      <span class="server-desc">${server.description}</span>
-    `;
+
+    const main = document.createElement('div');
+    main.className = 'server-card-main';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'server-name';
+    nameEl.textContent = server.name;
+    const descEl = document.createElement('span');
+    descEl.className = 'server-desc';
+    descEl.textContent = server.description || '';
+    main.appendChild(nameEl);
+    main.appendChild(descEl);
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'server-edit-btn';
+    editBtn.title = "Modifier l'IP";
+    editBtn.textContent = '⚙';
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openEditIpModal(server);
+    });
+
+    card.appendChild(main);
+    card.appendChild(editBtn);
+
     card.addEventListener('click', async () => {
       await window.api.setSelectedServer(server.id);
       document.querySelectorAll('.server-card').forEach((c) => c.classList.remove('selected'));
@@ -72,6 +92,110 @@ async function loadServerList() {
     listEl.appendChild(card);
   });
 }
+
+// --- Modal générique (édition IP / ajout de serveur) ---
+const modalOverlay = document.getElementById('modal-overlay');
+const modalTitle = document.getElementById('modal-title');
+const modalFields = document.getElementById('modal-fields');
+const modalSaveBtn = document.getElementById('modal-save-btn');
+const modalCancelBtn = document.getElementById('modal-cancel-btn');
+
+function closeModal() {
+  modalOverlay.classList.remove('active');
+  modalFields.innerHTML = '';
+  modalSaveBtn.onclick = null;
+}
+modalCancelBtn.addEventListener('click', closeModal);
+modalOverlay.addEventListener('click', (e) => {
+  if (e.target === modalOverlay) closeModal();
+});
+
+function addModalField(labelText, { type = 'text', value = '', placeholder = '' } = {}) {
+  const row = document.createElement('div');
+  row.className = 'modal-field-row';
+  const label = document.createElement('label');
+  label.textContent = labelText;
+  const input = document.createElement('input');
+  input.className = 'field';
+  input.type = type;
+  input.value = value;
+  input.placeholder = placeholder;
+  row.appendChild(label);
+  row.appendChild(input);
+  modalFields.appendChild(row);
+  return input;
+}
+
+function addModalSelect(labelText, options, selected) {
+  const row = document.createElement('div');
+  row.className = 'modal-field-row';
+  const label = document.createElement('label');
+  label.textContent = labelText;
+  const select = document.createElement('select');
+  select.className = 'field';
+  options.forEach((opt) => {
+    const optionEl = document.createElement('option');
+    optionEl.value = opt;
+    optionEl.textContent = opt;
+    if (opt === selected) optionEl.selected = true;
+    select.appendChild(optionEl);
+  });
+  row.appendChild(label);
+  row.appendChild(select);
+  modalFields.appendChild(row);
+  return select;
+}
+
+function openEditIpModal(server) {
+  modalTitle.textContent = `Modifier ${server.name}`;
+  modalFields.innerHTML = '';
+  const ipInput = addModalField('Adresse IP', { value: server.ip, placeholder: 'play.exemple.fr' });
+  const portInput = addModalField('Port', { type: 'number', value: server.port || 25565 });
+
+  modalSaveBtn.onclick = async () => {
+    const ip = ipInput.value.trim();
+    if (!ip) return;
+    const port = Number(portInput.value) || 25565;
+    await window.api.updateServerIp(server.id, ip, port);
+    closeModal();
+    await loadServerList();
+    refreshServerStatus();
+  };
+  modalOverlay.classList.add('active');
+}
+
+function openAddServerModal() {
+  modalTitle.textContent = 'Ajouter un serveur';
+  modalFields.innerHTML = '';
+  const nameInput = addModalField('Nom', { placeholder: 'Mon serveur' });
+  const descInput = addModalField('Description', { placeholder: 'Fabric 1.21 — Survie' });
+  const ipInput = addModalField('Adresse IP', { placeholder: 'play.exemple.fr' });
+  const portInput = addModalField('Port', { type: 'number', value: 25565 });
+  const loaderSelect = addModalSelect('Loader', ['vanilla', 'fabric', 'neoforge'], 'fabric');
+  const versionInput = addModalField('Version Minecraft', { placeholder: '1.21.1' });
+  const manifestInput = addModalField('URL manifest modpack (optionnel)', { placeholder: 'https://raw.githubusercontent.com/...' });
+
+  modalSaveBtn.onclick = async () => {
+    const name = nameInput.value.trim();
+    const ip = ipInput.value.trim();
+    if (!name || !ip) return;
+    await window.api.addServer({
+      name,
+      description: descInput.value.trim(),
+      ip,
+      port: Number(portInput.value) || 25565,
+      loader: loaderSelect.value,
+      mcVersion: versionInput.value.trim(),
+      loaderVersion: '',
+      manifestUrl: manifestInput.value.trim()
+    });
+    closeModal();
+    await loadServerList();
+  };
+  modalOverlay.classList.add('active');
+}
+
+document.getElementById('add-server-btn').addEventListener('click', openAddServerModal);
 
 // --- Écran Connexion ---
 document.getElementById('save-username-btn').addEventListener('click', async () => {
