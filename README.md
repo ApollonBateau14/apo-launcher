@@ -26,24 +26,22 @@ npm start
 - Squelette de vérification du modpack via un `manifest.json` distant par serveur (comparaison de hash)
 - Squelette de lancement du jeu via `minecraft-launcher-core` (télécharge le client vanilla + gère l'auth offline)
 - Code source hébergé sur [github.com/ApollonBateau14/apo-launcher](https://github.com/ApollonBateau14/apo-launcher) (public — sans IP ni whitelist)
+- Icône de l'appli/installeur (`src/assets/icon.ico`, multi-résolution 16→256px)
 
 ## Ce qu'il reste à faire avant que ça tourne vraiment
 
-1. **Asset manquant** : `icon.ico` dans `src/assets/` — icône de l'appli/installeur
-   (`wallpaper.jpg` et `theme.mp3` sont déjà en place).
-
-2. **Héberger les modpacks sur GitHub** :
+1. **Héberger les modpacks sur GitHub** :
    - Un dossier par serveur (ex `modpack-apocreate/`, `modpack-femboyserver/`) avec les `.jar` + un `manifest.json` chacun,
      dans ce repo ou un autre repo public dédié
    - Renseigner `manifestUrl` pour chaque serveur dans `SERVERS_META` (`main.js`)
 
-3. **Profil du loader (Fabric/NeoForge)** — `src/lib/launcher.js` a un TODO : il faut télécharger/générer
+2. **Profil du loader (Fabric/NeoForge)** — `src/lib/launcher.js` a un TODO : il faut télécharger/générer
    le profil du loader propre à chaque serveur avant de lancer le jeu (sinon MCLC lance du vanilla pur, sans mods).
 
-4. **electron-builder / electron-updater** — la config `publish` dans `package.json` pointe encore vers
+3. **electron-builder / electron-updater** — la config `publish` dans `package.json` pointe encore vers
    `TON-PSEUDO-GITHUB` à remplacer par `ApollonBateau14`, pour que l'auto-update du launcher fonctionne via GitHub Releases.
 
-5. **SmartScreen Windows** — l'exe ne sera pas signé (signature payante), donc au premier lancement
+4. **SmartScreen Windows** — l'exe ne sera pas signé (signature payante), donc au premier lancement
    Windows va afficher un avertissement. À prévenir tes potes : "Informations complémentaires → Exécuter quand même".
 
 On avance étape par étape sur ces points quand tu veux.
