@@ -43,7 +43,6 @@ navItems.forEach((btn) => {
 async function loadSettings() {
   const settings = await window.api.getSettings();
   document.getElementById('username-input').value = settings.username || '';
-  document.getElementById('username-settings-input').placeholder = settings.username || 'Nouveau pseudo';
   document.getElementById('ram-slider').value = settings.ramMb;
   document.getElementById('ram-value').textContent = `${(settings.ramMb / 1024).toFixed(1)} Go`;
 }
@@ -212,11 +211,6 @@ ramSlider.addEventListener('input', () => {
 
 document.getElementById('save-settings-btn').addEventListener('click', async () => {
   await window.api.setRam(Number(ramSlider.value));
-  const newUsername = document.getElementById('username-settings-input').value.trim();
-  if (newUsername) {
-    await window.api.setUsername(newUsername);
-    document.getElementById('username-input').value = newUsername;
-  }
 });
 
 // --- Écran Play : statut serveur ---
