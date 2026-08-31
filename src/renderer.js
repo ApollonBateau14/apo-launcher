@@ -10,7 +10,7 @@ let musicStarted = false;
 function startMusicOnce() {
   if (musicStarted) return;
   musicStarted = true;
-  music.volume = 0.3;
+  music.volume = 0.1;
   music.play().catch(() => {}); // ignore si le fichier n'existe pas encore
   document.removeEventListener('click', startMusicOnce);
 }
@@ -25,18 +25,20 @@ muteBtn.addEventListener('click', () => {
 const navItems = document.querySelectorAll('.nav-item');
 const screens = document.querySelectorAll('.screen');
 
-navItems.forEach((btn) => {
-  btn.addEventListener('click', () => {
-    navItems.forEach((b) => b.classList.remove('active'));
-    screens.forEach((s) => s.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(`screen-${btn.dataset.screen}`).classList.add('active');
+function goToScreen(screenName) {
+  navItems.forEach((b) => b.classList.remove('active'));
+  screens.forEach((s) => s.classList.remove('active'));
+  document.querySelector(`.nav-item[data-screen="${screenName}"]`).classList.add('active');
+  document.getElementById(`screen-${screenName}`).classList.add('active');
 
-    if (btn.dataset.screen === 'play') {
-      loadServerList();
-      refreshServerStatus();
-    }
-  });
+  if (screenName === 'play') {
+    loadServerList();
+    refreshServerStatus();
+  }
+}
+
+navItems.forEach((btn) => {
+  btn.addEventListener('click', () => goToScreen(btn.dataset.screen));
 });
 
 // --- Chargement des réglages sauvegardés ---
@@ -45,6 +47,9 @@ async function loadSettings() {
   document.getElementById('username-input').value = settings.username || '';
   document.getElementById('ram-slider').value = settings.ramMb;
   document.getElementById('ram-value').textContent = `${(settings.ramMb / 1024).toFixed(1)} Go`;
+
+  // Pseudo déjà défini lors d'un lancement précédent : direct sur Play.
+  if (settings.username) goToScreen('play');
 }
 loadSettings();
 
@@ -201,6 +206,7 @@ document.getElementById('save-username-btn').addEventListener('click', async () 
   const value = document.getElementById('username-input').value.trim();
   if (!value) return;
   await window.api.setUsername(value);
+  goToScreen('play');
 });
 
 // --- Écran Paramètres ---
