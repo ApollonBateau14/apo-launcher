@@ -243,11 +243,24 @@ async function refreshServerStatus() {
 }
 
 // --- Écran Play : lancer le jeu ---
+const launchProgressEl = document.getElementById('launch-progress');
+
+window.api.onLaunchProgress((progress) => {
+  if (progress.task === 'java-download-start') {
+    launchProgressEl.textContent = `Téléchargement de Java ${progress.majorVersion}…`;
+  } else if (progress.task === 'java-download-progress') {
+    launchProgressEl.textContent = `Téléchargement de Java ${progress.majorVersion}… ${Math.round(progress.ratio * 100)}%`;
+  } else if (progress.task === 'java-download-done') {
+    launchProgressEl.textContent = 'Java prêt, préparation du jeu…';
+  } else if (progress.task === 'mc-download') {
+    launchProgressEl.textContent = `Téléchargement de Minecraft (${progress.type})…`;
+  }
+});
+
 document.getElementById('play-btn').addEventListener('click', async () => {
-  const progressEl = document.getElementById('launch-progress');
-  progressEl.textContent = 'Lancement en cours…';
+  launchProgressEl.textContent = 'Lancement en cours…';
   const result = await window.api.launchGame();
   if (!result.success) {
-    progressEl.textContent = `Erreur : ${result.error}`;
+    launchProgressEl.textContent = `Erreur : ${result.error}`;
   }
 });

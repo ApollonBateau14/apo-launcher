@@ -15,5 +15,9 @@ contextBridge.exposeInMainWorld('api', {
 
   pingServer: () => ipcRenderer.invoke('ping-server'),
   checkModpack: () => ipcRenderer.invoke('check-modpack'),
-  launchGame: () => ipcRenderer.invoke('launch-game')
+  launchGame: () => ipcRenderer.invoke('launch-game'),
+  onLaunchProgress: (callback) => {
+    ipcRenderer.removeAllListeners('launch-progress');
+    ipcRenderer.on('launch-progress', (_e, progress) => callback(progress));
+  }
 });

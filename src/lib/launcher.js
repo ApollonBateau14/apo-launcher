@@ -8,8 +8,10 @@
 
 const { Client, Authenticator } = require('minecraft-launcher-core');
 const path = require('path');
+const fs = require('fs');
 const { app, BrowserWindow } = require('electron');
 const { getModsDir } = require('./modpack');
+const { ensureJava } = require('./javaRuntime');
 
 function getGameDir(serverId) {
   // Un dossier de jeu séparé par serveur : évite qu'un modpack Fabric
@@ -28,20 +30,43 @@ async function launchGame({ username, ramMb, server }) {
   const launcher = new Client();
   const gameDir = getGameDir(server.id);
 
+  // MCLC ne crée pas les dossiers parents manquants avant d'y écrire
+  // (plante avec ENOENT au premier lancement). On s'assure qu'il existe.
+  fs.mkdirSync(gameDir, { recursive: true });
+
+  const sendProgress = (progress) => {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (win) win.webContents.send('launch-progress', progress);
+  };
+
+  // Vérifie/télécharge un Java compatible avec cette version de Minecraft
+  // AVANT de lancer (ex: MC 26.1.2 nécessite Java 25+, indépendamment de ce
+  // qui est installé sur la machine). Isolé du Java système, jamais écrasé.
+  let javaPath;
+  try {
+    javaPath = await ensureJava(server.mcVersion, sendProgress);
+  } catch (err) {
+    return { success: false, error: `Java : ${err.message}` };
+  }
+
   const opts = {
     // Auth offline : génère un UUID à partir du pseudo, sans passer par Microsoft
     authorization: Authenticator.getAuth(username),
     root: gameDir,
+    javaPath,
     version: {
       number: server.mcVersion,
       type: 'release'
       // Une fois le profil du loader généré, on passera plutôt :
       // custom: `${server.loader}-loader-${server.mcVersion}-${server.loaderVersion}`
     },
-    customLaunchArgs: [
-      `--server`, server.ip,
-      `--port`, String(server.port)
-    ],
+    // --server/--port sont dépréciés côté client (le jeu s'ouvrait sur le menu
+    // principal au lieu de rejoindre). quickPlay est le mécanisme actuel :
+    // le client télécharge, charge, puis rejoint directement le monde.
+    quickPlay: {
+      type: 'multiplayer',
+      identifier: `${server.ip}:${server.port}`
+    },
     memory: {
       max: `${ramMb}M`,
       min: `${Math.min(ramMb, 2048)}M`
@@ -63,9 +88,8 @@ async function launchGame({ username, ramMb, server }) {
     console.log('Minecraft fermé, code', code);
   });
   launcher.on('progress', (progress) => {
-    // progress: { type, task, total }
-    const win = BrowserWindow.getAllWindows()[0];
-    if (win) win.webContents.send('launch-progress', progress);
+    // progress MCLC brut : { type, task, total }
+    sendProgress({ task: 'mc-download', ...progress });
   });
 
   return { success: true };
