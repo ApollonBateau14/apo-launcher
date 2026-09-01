@@ -7,17 +7,12 @@
 // tout ça dépend du serveur actuellement sélectionné dans l'app.
 
 const { Client, Authenticator } = require('minecraft-launcher-core');
-const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow } = require('electron');
-const { getModsDir } = require('./modpack');
+const { BrowserWindow } = require('electron');
+const { getGameDir, syncModpack } = require('./modpack');
 const { ensureJava } = require('./javaRuntime');
-
-function getGameDir(serverId) {
-  // Un dossier de jeu séparé par serveur : évite qu'un modpack Fabric
-  // et un modpack NeoForge se marchent dessus.
-  return path.join(app.getPath('userData'), 'game', serverId);
-}
+const { getLoaderLaunchOptions } = require('./loaderProfile');
+const discordPresence = require('./discordPresence');
 
 async function launchGame({ username, ramMb, server }) {
   if (!username || username.trim().length === 0) {
@@ -49,17 +44,34 @@ async function launchGame({ username, ramMb, server }) {
     return { success: false, error: `Java : ${err.message}` };
   }
 
+  // Génère/télécharge le profil du bon loader (Fabric/Forge/NeoForge, ou
+  // rien pour vanilla) AVANT le lancement — sinon MCLC démarre en vanilla
+  // pur peu importe le serveur choisi et le dossier mods/ est ignoré.
+  let loaderOpts;
+  try {
+    sendProgress({ task: 'loader-check', loader: server.loader });
+    loaderOpts = await getLoaderLaunchOptions(server, gameDir);
+  } catch (err) {
+    return { success: false, error: `Loader (${server.loader}) : ${err.message}` };
+  }
+
+  // Télécharge/vérifie les mods du modpack (manifestUrl) avant le lancement.
+  // Sans manifestUrl configuré, ne fait rien (mods déjà présents à la main).
+  try {
+    sendProgress({ task: 'modpack-check' });
+    await syncModpack(server, (fileProgress) => {
+      sendProgress({ task: 'modpack-download', ...fileProgress });
+    });
+  } catch (err) {
+    return { success: false, error: `Modpack : ${err.message}` };
+  }
+
   const opts = {
     // Auth offline : génère un UUID à partir du pseudo, sans passer par Microsoft
     authorization: Authenticator.getAuth(username),
     root: gameDir,
     javaPath,
-    version: {
-      number: server.mcVersion,
-      type: 'release'
-      // Une fois le profil du loader généré, on passera plutôt :
-      // custom: `${server.loader}-loader-${server.mcVersion}-${server.loaderVersion}`
-    },
+    ...loaderOpts,
     // --server/--port sont dépréciés côté client (le jeu s'ouvrait sur le menu
     // principal au lieu de rejoindre). quickPlay est le mécanisme actuel :
     // le client télécharge, charge, puis rejoint directement le monde.
@@ -76,16 +88,14 @@ async function launchGame({ username, ramMb, server }) {
     }
   };
 
-  // TODO une fois le repo GitHub prêt : télécharger/valider le profil du loader
-  // (${server.loader} ${server.loaderVersion} pour Minecraft ${server.mcVersion})
-  // avant ce launch, propre à chaque serveur de la liste.
-
   launcher.launch(opts);
+  discordPresence.setPlaying(server.name);
 
   launcher.on('debug', (msg) => console.log('[MCLC debug]', msg));
   launcher.on('data', (msg) => console.log('[MCLC]', msg.toString()));
   launcher.on('close', (code) => {
     console.log('Minecraft fermé, code', code);
+    discordPresence.setIdle();
   });
   launcher.on('progress', (progress) => {
     // progress MCLC brut : { type, task, total }
@@ -95,4 +105,4 @@ async function launchGame({ username, ramMb, server }) {
   return { success: true };
 }
 
-module.exports = { launchGame };
+module.exports = { launchGame, getGameDir };

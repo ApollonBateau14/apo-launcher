@@ -96,6 +96,7 @@ function pingServer(host, port, timeoutMs = 4000) {
           playersOnline: data.players?.online ?? 0,
           playersMax: data.players?.max ?? 0,
           sample: data.players?.sample || [], // [{name, id (uuid)}]
+          favicon: data.favicon || null, // data:image/png;base64,... (icône 64x64 du serveur)
           ping
         });
       } catch (err) {

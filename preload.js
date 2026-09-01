@@ -7,13 +7,18 @@ contextBridge.exposeInMainWorld('api', {
   getSettings: () => ipcRenderer.invoke('get-settings'),
   setUsername: (username) => ipcRenderer.invoke('set-username', username),
   setRam: (ramMb) => ipcRenderer.invoke('set-ram', ramMb),
+  setMusicVolume: (volumePercent) => ipcRenderer.invoke('set-music-volume', volumePercent),
+  openGameFolder: () => ipcRenderer.invoke('open-game-folder'),
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
 
   getServers: () => ipcRenderer.invoke('get-servers'),
   setSelectedServer: (serverId) => ipcRenderer.invoke('set-selected-server', serverId),
-  updateServerIp: (serverId, ip, port) => ipcRenderer.invoke('update-server-ip', { serverId, ip, port }),
+  updateServer: (serverId, data) => ipcRenderer.invoke('update-server', { serverId, ...data }),
   addServer: (serverData) => ipcRenderer.invoke('add-server', serverData),
+  removeServer: (serverId) => ipcRenderer.invoke('remove-server', serverId),
 
   pingServer: () => ipcRenderer.invoke('ping-server'),
+  getServerFavicon: (serverId) => ipcRenderer.invoke('get-server-favicon', serverId),
   checkModpack: () => ipcRenderer.invoke('check-modpack'),
   launchGame: () => ipcRenderer.invoke('launch-game'),
   onLaunchProgress: (callback) => {

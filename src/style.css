@@ -57,6 +57,12 @@ html {
   inset: 0;
   background: linear-gradient(0deg, rgba(15,10,25,0.55) 0%, rgba(15,10,25,0.15) 50%, rgba(15,10,25,0.4) 100%);
   z-index: -2;
+  /* Masque les micro-écarts d'arrondi entre le fond et la barre de titre
+     (sous-pixel) : un liseré noir vers l'intérieur se fond dans le thème
+     sombre au lieu de laisser voir un triangle clair dans les coins.
+     (Sur .bg-image, une <img>, le box-shadow ne s'affichait pas — le
+     contenu de l'image le recouvre. Ici .bg-overlay est une <div>.) */
+  box-shadow: inset 0 0 0 2px #000;
 }
 
 .bg-image, .bg-overlay {
@@ -67,16 +73,17 @@ html {
    traitement liquid glass que .glass-panel : flou + reflet intérieur. */
 .titlebar {
   -webkit-app-region: drag;
-  height: 35px;
+  height: 40p
+x;
   display: flex;
   align-items: center;
   padding: 8px 14px;
   gap: 8px;
-  /* Coins arrondis sur sa propre boîte (sinon le blur déborde du clip
-     parent). La bordure de 1px sur html décale body vers l'intérieur,
-     donc la barre est étirée de 1px en haut/gauche/droite pour que son
-     rayon reste concentrique avec celui de la fenêtre — sans ce +1px,
-     un petit triangle de fond restait visible dans les coins. */
+  /* La bordure de 1px sur html décale body vers l'intérieur : la barre
+     est étirée de 1px en haut/gauche/droite pour couvrir jusqu'au bord
+     réel de la fenêtre. Même rayon que le fond (html, .bg-image) pour que
+     les deux arrondis coïncident visuellement — un rayon différent créait
+     un effet "double contour" visible dans les coins. */
   margin: -1px -1px 0 -1px;
   width: calc(100% + 2px);
   border-radius: 16px 16px 0 0;
@@ -205,6 +212,14 @@ html {
 .field::placeholder { color: rgba(255,255,255,0.55); }
 .field:focus { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.6); }
 
+/* Le popup déroulant d'un <select> est rendu par l'OS, pas affecté par le
+   fond translucide de .field (d'où le blanc sur blanc) : couleur opaque
+   proche du thème, obligatoire pour que le popup natif la respecte. */
+select.field option {
+  background: #1b1530;
+  color: #fff;
+}
+
 .hint {
   font-size: 11px;
   opacity: 0.6;
@@ -228,8 +243,8 @@ html {
 }
 .btn:hover { background: rgba(255,255,255,0.22); transform: translateY(-2px); }
 .btn:active { transform: scale(0.97); }
-.btn.primary { background: rgba(120,180,255,0.35); border-color: rgba(150,200,255,0.55); }
-.btn.primary:hover { background: rgba(120,180,255,0.5); }
+.btn.primary { background: rgba(230,180,80,0.35); border-color: rgba(240,200,120,0.55); }
+.btn.primary:hover { background: rgba(230,180,80,0.5); }
 
 .server-list {
   display: flex;
@@ -246,7 +261,7 @@ html {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 14px;
+  padding: 6px 14px;
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.2);
   background: rgba(255,255,255,0.08);
@@ -255,9 +270,27 @@ html {
 }
 .server-card:hover { background: rgba(255,255,255,0.14); }
 .server-card.selected {
-  background: rgba(120,180,255,0.25);
-  border-color: rgba(150,200,255,0.6);
+  background: rgba(230,180,80,0.25);
+  border-color: rgba(240,200,120,0.6);
 }
+.server-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.server-icon-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(230,180,80,0.25);
+  color: rgba(255,255,255,0.9);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .server-card-main {
   display: flex;
   flex-direction: column;
@@ -271,9 +304,9 @@ html {
   background: none;
   border: none;
   color: rgba(255,255,255,0.75);
-  width: 52px;
-  height: 52px;
-  font-size: 32px;
+  width: 34px;
+  height: 34px;
+  font-size: 20px;
   cursor: pointer;
   transition: color 0.2s ease, transform 0.2s ease;
 }
@@ -303,6 +336,9 @@ html {
   background: rgba(10,8,20,0.55);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  /* Coins arrondis sur sa propre boîte, sinon le flou déborde du clip
+     de la fenêtre (même souci que la barre de titre au départ). */
+  border-radius: 16px;
   display: none;
   align-items: center;
   justify-content: center;
@@ -316,6 +352,29 @@ html {
   overflow-y: auto;
 }
 
+/* Scrollbar fine façon liquid glass au lieu du rendu Windows par défaut. */
+.modal::-webkit-scrollbar,
+.server-list::-webkit-scrollbar {
+  width: 8px;
+}
+.modal::-webkit-scrollbar-track,
+.server-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal::-webkit-scrollbar-thumb,
+.server-list::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.25);
+  border-radius: 8px;
+  /* Retrait en haut/bas pour ne pas toucher les coins arrondis du modal. */
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  background-clip: padding-box;
+}
+.modal::-webkit-scrollbar-thumb:hover,
+.server-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.4);
+}
+
 .modal-field-row { margin-bottom: 12px; }
 .modal-field-row label {
   display: block;
@@ -324,6 +383,24 @@ html {
   letter-spacing: 1px;
   opacity: 0.65;
   margin-bottom: 4px;
+}
+
+.modal-delete-btn {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px;
+  background: none;
+  border: 1px solid rgba(220,80,80,0.4);
+  border-radius: 12px;
+  color: rgba(255,140,140,0.85);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.modal-delete-btn:hover {
+  background: rgba(220,60,60,0.2);
+  color: #fff;
 }
 
 .server-status {
@@ -348,4 +425,62 @@ html {
 
 .ram-row { display: flex; align-items: center; gap: 12px; }
 .ram-row input[type="range"] { flex: 1; }
-#ram-value { font-size: 13px; min-width: 64px; text-align: right; }
+#ram-value, #volume-value { font-size: 13px; min-width: 64px; text-align: right; }
+
+/* Slider façon liquid glass (piste translucide, pouce doré) au lieu du
+   rendu Windows par défaut — même langage que .field/.btn. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 16px;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(230,180,80,0.9);
+  border: 2px solid rgba(255,255,255,0.6);
+  margin-top: -5px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  background: rgba(230,180,80,1);
+}
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(230,180,80,0.9);
+  border: 2px solid rgba(255,255,255,0.6);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  cursor: pointer;
+}
+
+.app-version {
+  position: fixed;
+  bottom: 10px;
+  right: 14px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+  z-index: 5;
+  pointer-events: none;
+}

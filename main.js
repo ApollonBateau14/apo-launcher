@@ -1,10 +1,17 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const fetch = require('node-fetch');
 const Store = require('electron-store');
 const { pingServer } = require('./src/lib/serverPing');
 const { checkModpackUpdate } = require('./src/lib/modpack');
-const { launchGame } = require('./src/lib/launcher');
+const { launchGame, getGameDir } = require('./src/lib/launcher');
+const discordPresence = require('./src/lib/discordPresence');
+
+// Repo GitHub utilisé pour la vérification manuelle des mises à jour
+// (bouton "Vérifier les mises à jour"), distinct de l'auto-update
+// electron-updater (pas encore branché — voir README).
+const GITHUB_REPO = 'ApollonBateau14/apo-launcher';
 
 // Métadonnées des serveurs : pas sensible, ça reste dans le code (public sur GitHub).
 // Complète/adapte cette liste avec tes vrais serveurs et leurs manifests GitHub.
@@ -17,7 +24,8 @@ const SERVERS_META = [
     loader: 'fabric',
     mcVersion: '26.1.2',
     loaderVersion: '',
-    manifestUrl: ''
+    manifestUrl: '',
+    icon: ''
   }
 ];
 
@@ -35,23 +43,29 @@ function loadServerIps() {
   }
 }
 
-// Fusionne les métadonnées du code (toujours à jour) avec l'IP/port :
-// - si déjà modifiée en jeu (bouton ⚙, persisté dans le store) → gardée telle quelle
-// - sinon reprise de servers.ip.json (fichier local, jamais commité)
-// Les serveurs ajoutés depuis l'appli ("+ Ajouter un serveur") ne sont pas dans
-// SERVERS_META : ils sont conservés tels quels depuis le store persistant.
+// Fusionne les métadonnées du code (toujours à jour pour nom/description/
+// manifest) avec ce que le joueur a modifié en jeu (IP, port, loader,
+// version — persisté dans le store, prioritaire sur le code une fois édité).
+// Les serveurs ajoutés depuis l'appli ("+ Ajouter un serveur") ne sont pas
+// dans SERVERS_META : ils sont conservés tels quels depuis le store.
+// removedServerIds : serveurs du code supprimés par le joueur — sans ça,
+// SERVERS_META les recréerait à chaque démarrage malgré la suppression.
 function buildServersList() {
   const ips = loadServerIps();
   const persisted = store.get('servers', []);
   const persistedById = Object.fromEntries(persisted.map((s) => [s.id, s]));
   const codeIds = new Set(SERVERS_META.map((s) => s.id));
+  const removedIds = new Set(store.get('removedServerIds', []));
 
-  const codeServers = SERVERS_META.map((meta) => {
+  const codeServers = SERVERS_META.filter((meta) => !removedIds.has(meta.id)).map((meta) => {
     const prev = persistedById[meta.id];
     return {
       ...meta,
       ip: prev?.ip || ips[meta.id]?.ip || '',
-      port: prev?.port || ips[meta.id]?.port || 25565
+      port: prev?.port || ips[meta.id]?.port || 25565,
+      loader: prev?.loader || meta.loader,
+      mcVersion: prev?.mcVersion || meta.mcVersion,
+      icon: prev?.icon || meta.icon
     };
   });
 
@@ -71,7 +85,9 @@ const store = new Store({
   defaults: {
     username: '',
     ramMb: 4096,
-    selectedServerId: SERVERS_META[0]?.id || ''
+    musicVolume: 10,
+    selectedServerId: SERVERS_META[0]?.id || '',
+    removedServerIds: []
   }
 });
 
@@ -101,6 +117,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+  discordPresence.connect();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -108,6 +125,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  discordPresence.disconnect();
   if (process.platform !== 'darwin') app.quit();
 });
 
@@ -115,8 +133,9 @@ app.on('window-all-closed', () => {
 ipcMain.on('window-minimize', () => mainWindow.minimize());
 ipcMain.on('window-close', () => mainWindow.close());
 
-// ---- IPC: config utilisateur (pseudo, ram) ----
-ipcMain.handle('get-settings', () => store.store);
+// ---- IPC: config utilisateur (pseudo, ram, volume musique) ----
+// appVersion n'est pas persisté : toujours lu depuis package.json/le build.
+ipcMain.handle('get-settings', () => ({ ...store.store, appVersion: app.getVersion() }));
 
 ipcMain.handle('set-username', (_e, username) => {
   store.set('username', username);
@@ -128,6 +147,11 @@ ipcMain.handle('set-ram', (_e, ramMb) => {
   return true;
 });
 
+ipcMain.handle('set-music-volume', (_e, volumePercent) => {
+  store.set('musicVolume', volumePercent);
+  return true;
+});
+
 // ---- IPC: liste des serveurs + sélection ----
 ipcMain.handle('get-servers', () => store.get('servers'));
 
@@ -136,15 +160,43 @@ ipcMain.handle('set-selected-server', (_e, serverId) => {
   return true;
 });
 
-// ---- IPC: modifier l'IP/port d'un serveur (bouton ⚙ dans la liste) ----
-ipcMain.handle('update-server-ip', (_e, { serverId, ip, port }) => {
+// ---- IPC: modifier un serveur (bouton ⚙ dans la liste) ----
+ipcMain.handle('update-server', (_e, { serverId, ip, port, loader, mcVersion, icon }) => {
   const servers = store.get('servers', []);
   const server = servers.find((s) => s.id === serverId);
   if (!server) return false;
   server.ip = ip;
   server.port = port;
+  if (loader) server.loader = loader;
+  if (mcVersion) server.mcVersion = mcVersion;
+  if (icon !== undefined) server.icon = icon;
   store.set('servers', servers);
   return true;
+});
+
+// ---- IPC: supprimer un serveur (persistant même pour ceux définis dans le code) ----
+ipcMain.handle('remove-server', (_e, serverId) => {
+  const servers = store.get('servers', []);
+  if (servers.length <= 1) {
+    return { success: false, error: 'Impossible de supprimer le dernier serveur.' };
+  }
+
+  const codeIds = new Set(SERVERS_META.map((s) => s.id));
+  if (codeIds.has(serverId)) {
+    const removed = store.get('removedServerIds', []);
+    if (!removed.includes(serverId)) {
+      store.set('removedServerIds', [...removed, serverId]);
+    }
+  }
+
+  const remaining = servers.filter((s) => s.id !== serverId);
+  store.set('servers', remaining);
+
+  if (store.get('selectedServerId') === serverId) {
+    store.set('selectedServerId', remaining[0]?.id || '');
+  }
+
+  return { success: true };
 });
 
 // ---- IPC: ajouter un serveur depuis l'appli (bouton "+ Ajouter un serveur") ----
@@ -165,6 +217,7 @@ ipcMain.handle('add-server', (_e, data) => {
     mcVersion: data.mcVersion || '',
     loaderVersion: data.loaderVersion || '',
     manifestUrl: data.manifestUrl || '',
+    icon: data.icon || '',
     ip: data.ip || '',
     port: Number(data.port) || 25565
   };
@@ -192,6 +245,22 @@ ipcMain.handle('ping-server', async () => {
   }
 });
 
+// ---- IPC: icône d'un serveur précis (pas forcément le sélectionné) ----
+// Le protocole de ping Minecraft renvoie l'icône du serveur (favicon), on
+// la récupère pour l'afficher dans la liste sans que le joueur ait à la
+// renseigner à la main.
+ipcMain.handle('get-server-favicon', async (_e, serverId) => {
+  const servers = store.get('servers', []);
+  const server = servers.find((s) => s.id === serverId);
+  if (!server || !server.ip) return null;
+  try {
+    const result = await pingServer(server.ip, server.port);
+    return result.favicon || null;
+  } catch {
+    return null;
+  }
+});
+
 // ---- IPC: vérifier/mettre à jour le modpack du serveur sélectionné ----
 ipcMain.handle('check-modpack', async () => {
   const server = getSelectedServer();
@@ -206,4 +275,38 @@ ipcMain.handle('launch-game', async () => {
     return { success: false, error: 'IP non configurée pour ce serveur — clique sur ⚙ pour la renseigner.' };
   }
   return launchGame({ username, ramMb, server });
+});
+
+// ---- IPC: ouvrir le dossier de jeu du serveur sélectionné (dépannage) ----
+ipcMain.handle('open-game-folder', () => {
+  const server = getSelectedServer();
+  const dir = getGameDir(server.id);
+  fs.mkdirSync(dir, { recursive: true });
+  shell.openPath(dir);
+  return true;
+});
+
+// ---- IPC: vérification manuelle des mises à jour via les Releases GitHub ----
+// (Distinct de l'auto-update electron-updater, pas encore branché.)
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
+    if (res.status === 404) {
+      return { error: 'Aucune release publiée sur GitHub pour le moment.' };
+    }
+    if (!res.ok) {
+      return { error: `Erreur GitHub (HTTP ${res.status})` };
+    }
+    const data = await res.json();
+    const latest = (data.tag_name || '').replace(/^v/, '');
+    const current = app.getVersion();
+    return {
+      current,
+      latest,
+      upToDate: latest === current,
+      url: data.html_url
+    };
+  } catch (err) {
+    return { error: err.message };
+  }
 });
