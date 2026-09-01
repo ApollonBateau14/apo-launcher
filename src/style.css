@@ -35,6 +35,11 @@ html {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* wallpaper.jpg est en portrait (1200x2140) pour une fenêtre en paysage
+     (900x600) : le recadrage vertical automatique (50%) tombait en plein sur
+     la grosse lueur chaude à gauche, déséquilibrant tout le fond. Recadré
+     plus haut pour une composition équilibrée gauche/droite. */
+  object-position: center 25%;
   z-index: -3;
 }
 
