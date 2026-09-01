@@ -18,7 +18,8 @@ document.addEventListener('click', startMusicOnce);
 
 muteBtn.addEventListener('click', () => {
   music.muted = !music.muted;
-  muteBtn.textContent = music.muted ? '🔇' : '🔊';
+  muteBtn.title = music.muted ? 'Remettre le son' : 'Couper le son';
+  muteBtn.classList.toggle('muted', music.muted);
 });
 
 // --- Navigation entre écrans ---
