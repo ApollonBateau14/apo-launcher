@@ -67,15 +67,19 @@ html {
    traitement liquid glass que .glass-panel : flou + reflet intérieur. */
 .titlebar {
   -webkit-app-region: drag;
-  height: 44px;
+  height: 35px;
   display: flex;
   align-items: center;
   padding: 8px 14px;
   gap: 8px;
-  /* Coins arrondis sur sa propre boîte : le blur ne compte pas que sur le
-     clip du parent (ça débordait légèrement en haut à gauche/droite). */
+  /* Coins arrondis sur sa propre boîte (sinon le blur déborde du clip
+     parent). La bordure de 1px sur html décale body vers l'intérieur,
+     donc la barre est étirée de 1px en haut/gauche/droite pour que son
+     rayon reste concentrique avec celui de la fenêtre — sans ce +1px,
+     un petit triangle de fond restait visible dans les coins. */
+  margin: -1px -1px 0 -1px;
+  width: calc(100% + 2px);
   border-radius: 16px 16px 0 0;
-  transform: translate(-2px, -1px);
   background: rgba(255,255,255,0.08);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
