@@ -800,3 +800,43 @@ async function attemptLaunch() {
 
 document.getElementById('play-btn').addEventListener('click', attemptLaunch);
 retryLaunchBtn.addEventListener('click', attemptLaunch);
+
+// --- Écran Connexion : ticker actualités Minecraft ---
+// Même flux JSON public que le vrai launcher officiel Mojang (celui qui
+// alimente son propre panneau "actualités") — rien à héberger, 100% légitime.
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+async function loadNewsTicker() {
+  const track = document.getElementById('news-ticker-track');
+  if (!track) return;
+  try {
+    const res = await fetch('https://launchercontent.mojang.com/news.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const items = (data.entries || []).slice(0, 8);
+    if (!items.length) return;
+
+    const buildItems = () => items.map((entry) => `
+      <div class="news-ticker-item" data-url="${escapeHtml(entry.readMoreLink || '')}">
+        <div class="news-title">${escapeHtml(entry.title)}</div>
+        <div class="news-text">${escapeHtml(entry.text)}</div>
+      </div>
+    `).join('');
+
+    // Contenu dupliqué x2 : boucle infinie sans à-coup (voir @keyframes news-scroll)
+    track.innerHTML = buildItems() + buildItems();
+
+    track.querySelectorAll('.news-ticker-item').forEach((el) => {
+      el.addEventListener('click', () => {
+        if (el.dataset.url) window.api.openExternal(el.dataset.url);
+      });
+    });
+  } catch {
+    // Pas de connexion / API Mojang indisponible : zone laissée vide, rien de critique.
+  }
+}
+loadNewsTicker();

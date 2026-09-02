@@ -429,6 +429,12 @@ ipcMain.handle('copy-logs', () => {
   return true;
 });
 
+// ---- IPC: ouvrir un lien externe (article d'actu Minecraft) dans le navigateur ----
+ipcMain.handle('open-external', (_e, url) => {
+  if (typeof url === 'string' && /^https:\/\//.test(url)) shell.openExternal(url);
+  return true;
+});
+
 // ---- IPC: ouvrir le dossier de jeu du serveur sélectionné (dépannage) ----
 ipcMain.handle('open-game-folder', () => {
   const server = getSelectedServer();

@@ -534,6 +534,35 @@ select.field option {
 }
 .skin-gallery-remove:hover { background: rgba(200,60,60,0.9); }
 
+/* Ticker actualités Minecraft — remplit le vide sous le formulaire de
+   connexion, défile en boucle infinie (contenu dupliqué x2, translateY à
+   -50% = exactement un jeu de doublons, donc pas d'à-coup à la reprise). */
+.news-ticker {
+  margin-top: 18px;
+  height: 132px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 14%, black 86%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 14%, black 86%, transparent);
+}
+.news-ticker-track {
+  display: flex;
+  flex-direction: column;
+  animation: news-scroll 32s linear infinite;
+}
+.news-ticker:hover .news-ticker-track { animation-play-state: paused; }
+.news-ticker-item {
+  padding: 9px 2px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  cursor: pointer;
+}
+.news-ticker-item:hover .news-title { color: rgba(230,180,80,0.95); }
+.news-title { font-size: 12px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+.news-text { font-size: 11px; opacity: 0.6; line-height: 1.35; }
+@keyframes news-scroll {
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
+}
+
 .ram-row { display: flex; align-items: center; gap: 12px; }
 .ram-row input[type="range"] { flex: 1; }
 #ram-value, #volume-value { font-size: 13px; min-width: 64px; text-align: right; }

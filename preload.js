@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('api', {
   getAddonCatalog: () => ipcRenderer.invoke('get-addon-catalog'),
   setEnabledAddons: (ids) => ipcRenderer.invoke('set-enabled-addons', ids),
   openGameFolder: () => ipcRenderer.invoke('open-game-folder'),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
   copyLogs: () => ipcRenderer.invoke('copy-logs'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   getChangelogIfNew: () => ipcRenderer.invoke('get-changelog-if-new'),
