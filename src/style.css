@@ -391,12 +391,12 @@ select.field option {
 .server-list::-webkit-scrollbar-thumb,
 .screen::-webkit-scrollbar-thumb,
 .skin-editor-right::-webkit-scrollbar-thumb {
-  background: rgba(230,180,80,0.4);
+  /* Pas de border-clip transparent ici : combiné à border-radius, Chromium
+     ne rendait l'arrondi qu'après un repaint (ex: au survol) — visible au
+     repos comme des coins carrés. Juste un fond + un radius suffit et
+     s'affiche arrondi dès le premier rendu. */
+  background-color: rgba(230,180,80,0.4);
   border-radius: 8px;
-  /* Retrait en haut/bas pour ne pas toucher les coins arrondis du modal. */
-  border-top: 8px solid transparent;
-  border-bottom: 8px solid transparent;
-  background-clip: padding-box;
 }
 .modal::-webkit-scrollbar-thumb:hover,
 .server-list::-webkit-scrollbar-thumb:hover,
