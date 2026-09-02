@@ -27,15 +27,23 @@ muteBtn.addEventListener('click', () => {
 const navItems = document.querySelectorAll('.nav-item');
 const screens = document.querySelectorAll('.screen');
 
+// Rafraîchit le statut serveur tout seul pendant que Play est affiché —
+// sans ça, un statut "en ligne" resterait affiché même si le serveur
+// tombe entre-temps, tant qu'on ne change pas d'écran/de serveur à la main.
+let statusRefreshInterval = null;
+const STATUS_REFRESH_MS = 25000;
+
 function goToScreen(screenName) {
   navItems.forEach((b) => b.classList.remove('active'));
   screens.forEach((s) => s.classList.remove('active'));
   document.querySelector(`.nav-item[data-screen="${screenName}"]`).classList.add('active');
   document.getElementById(`screen-${screenName}`).classList.add('active');
 
+  clearInterval(statusRefreshInterval);
   if (screenName === 'play') {
     loadServerList();
     refreshServerStatus();
+    statusRefreshInterval = setInterval(refreshServerStatus, STATUS_REFRESH_MS);
   }
 }
 
@@ -54,6 +62,7 @@ function showMsAccount(account) {
   document.getElementById('ms-account-connected').hidden = !account;
   document.getElementById('ms-account-disconnected').hidden = !!account;
   if (account) document.getElementById('ms-account-name').textContent = account.name;
+  if (typeof loadCurrentSkin === 'function') loadCurrentSkin();
 }
 
 async function loadSettings() {
@@ -64,8 +73,29 @@ async function loadSettings() {
   muteBtn.title = window.i18n.t(music.muted ? 'mute.unmute' : 'mute.mute');
 
   document.getElementById('username-input').value = settings.username || '';
-  document.getElementById('ram-slider').value = settings.ramMb;
+
+  const ramSliderEl = document.getElementById('ram-slider');
+  if (settings.systemRamMb) {
+    // Pas de sens à proposer plus que ce que la machine a physiquement —
+    // le max fixe de 16 Go dans le HTML n'a aucune idée de la vraie RAM.
+    ramSliderEl.max = Math.max(2048, Math.round(settings.systemRamMb / 512) * 512);
+  }
+  ramSliderEl.value = settings.ramMb;
   document.getElementById('ram-value').textContent = `${(settings.ramMb / 1024).toFixed(1)} Go`;
+
+  if (settings.systemRamMb) {
+    // Règle simple : ~50% de la RAM totale, jamais moins de 2 Go ni plus
+    // que (total - 2 Go) pour laisser de quoi tourner l'OS à côté.
+    const raw = Math.round(settings.systemRamMb * 0.5 / 512) * 512;
+    const recommended = Math.min(Math.max(raw, 2048), Math.max(2048, settings.systemRamMb - 2048));
+    const suggestionEl = document.getElementById('ram-suggestion');
+    suggestionEl.textContent = window.i18n.t('settings.ramSuggested', { value: (recommended / 1024).toFixed(1) });
+    suggestionEl.style.cursor = 'pointer';
+    suggestionEl.onclick = () => {
+      ramSliderEl.value = recommended;
+      document.getElementById('ram-value').textContent = `${(recommended / 1024).toFixed(1)} Go`;
+    };
+  }
 
   const volume = settings.musicVolume ?? 10;
   document.getElementById('volume-slider').value = volume;
@@ -207,6 +237,31 @@ function closeModal() {
 modalCancelBtn.addEventListener('click', closeModal);
 modalOverlay.addEventListener('click', (e) => {
   if (e.target === modalOverlay) closeModal();
+});
+
+// Changelog affiché une fois après un auto-update (jamais à la toute
+// première installation, jamais deux fois pour la même version) — voir
+// autoUpdate.js:getChangelogIfNew().
+function openChangelogModal(changelog) {
+  modalTitle.textContent = window.i18n.t('changelog.title', { version: changelog.version });
+  modalFields.innerHTML = '';
+  const notes = document.createElement('p');
+  notes.className = 'hint';
+  notes.style.whiteSpace = 'pre-wrap';
+  notes.textContent = changelog.notes || window.i18n.t('changelog.noNotes');
+  modalFields.appendChild(notes);
+
+  modalCancelBtn.hidden = true;
+  modalSaveBtn.textContent = window.i18n.t('changelog.close');
+  modalSaveBtn.onclick = () => {
+    modalCancelBtn.hidden = false;
+    closeModal();
+  };
+  modalOverlay.classList.add('active');
+}
+
+window.api.getChangelogIfNew().then((changelog) => {
+  if (changelog) openChangelogModal(changelog);
 });
 
 function addModalField(labelText, { type = 'text', value = '', placeholder = '' } = {}) {
@@ -437,6 +492,57 @@ document.getElementById('ms-logout-btn').addEventListener('click', async () => {
   showMsAccount(null);
 });
 
+// --- Skin (recherche par pseudo Minecraft réel + application) ---
+async function loadCurrentSkin() {
+  const { skinUrl } = await window.api.getCurrentSkin();
+  const face = document.getElementById('skin-current-face');
+  if (skinUrl) {
+    document.getElementById('skin-current-img').src = skinUrl;
+    face.hidden = false;
+  } else {
+    face.hidden = true;
+  }
+}
+loadCurrentSkin();
+
+let foundSkin = null;
+
+document.getElementById('skin-search-btn').addEventListener('click', async () => {
+  const username = document.getElementById('skin-search-input').value.trim();
+  const statusEl = document.getElementById('skin-status');
+  const resultRow = document.getElementById('skin-result-row');
+  if (!username) return;
+
+  resultRow.hidden = true;
+  foundSkin = null;
+  statusEl.textContent = window.i18n.t('skin.searching');
+
+  const result = await window.api.lookupSkin(username);
+  if (result.error) {
+    statusEl.textContent = window.i18n.t('skin.error', { message: result.error });
+  } else if (!result.uuid) {
+    statusEl.textContent = window.i18n.t('skin.notFound');
+  } else {
+    statusEl.textContent = '';
+    foundSkin = result;
+    document.getElementById('skin-result-img').src = result.skinUrl;
+    resultRow.hidden = false;
+  }
+});
+
+document.getElementById('skin-apply-btn').addEventListener('click', async () => {
+  if (!foundSkin?.skinUrl) return;
+  const statusEl = document.getElementById('skin-status');
+  const result = await window.api.applySkin(foundSkin.skinUrl);
+  if (!result.success) {
+    statusEl.textContent = window.i18n.t('skin.error', { message: result.error });
+    return;
+  }
+  const account = document.getElementById('ms-account-connected').hidden ? null : true;
+  statusEl.textContent = window.i18n.t(account ? 'skin.applied' : 'skin.appliedOfflineNote');
+  await loadCurrentSkin();
+});
+
 // --- Écran Paramètres ---
 const ramSlider = document.getElementById('ram-slider');
 ramSlider.addEventListener('input', () => {
@@ -450,6 +556,13 @@ document.getElementById('save-settings-btn').addEventListener('click', async () 
 
 document.getElementById('open-folder-btn').addEventListener('click', () => {
   window.api.openGameFolder();
+});
+
+document.getElementById('copy-logs-btn').addEventListener('click', async () => {
+  await window.api.copyLogs();
+  const statusEl = document.getElementById('copy-logs-status');
+  statusEl.textContent = window.i18n.t('settings.copyLogsDone');
+  setTimeout(() => { statusEl.textContent = ''; }, 3000);
 });
 
 // Auto-update réel (electron-updater côté main, voir src/lib/autoUpdate.js).
@@ -589,12 +702,19 @@ function fadeOutMusic(durationMs = 2000) {
   }, stepDelay);
 }
 
-document.getElementById('play-btn').addEventListener('click', async () => {
+const retryLaunchBtn = document.getElementById('retry-launch-btn');
+
+async function attemptLaunch() {
+  retryLaunchBtn.hidden = true;
   launchProgressEl.textContent = window.i18n.t('launch.starting');
   const result = await window.api.launchGame();
   if (!result.success) {
     launchProgressEl.textContent = window.i18n.t('launch.error', { error: result.error });
+    retryLaunchBtn.hidden = false;
   } else {
     fadeOutMusic();
   }
-});
+}
+
+document.getElementById('play-btn').addEventListener('click', attemptLaunch);
+retryLaunchBtn.addEventListener('click', attemptLaunch);

@@ -62,6 +62,24 @@
           </div>
           <p class="hint" id="ms-login-status"></p>
         </div>
+
+        <div id="skin-section" style="margin-top:22px;">
+          <p class="panel-title" data-i18n="skin.title">Skin</p>
+          <div class="skin-row">
+            <div class="skin-face" id="skin-current-face" hidden><img id="skin-current-img" alt="" /></div>
+            <div style="flex:1;">
+              <input class="field" type="text" id="skin-search-input" data-i18n-placeholder="skin.searchPlaceholder" placeholder="Pseudo Minecraft (ex: Notch)" maxlength="16" />
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top:8px;">
+            <button class="btn" id="skin-search-btn" data-i18n="skin.search">Chercher</button>
+          </div>
+          <div class="skin-row" id="skin-result-row" hidden style="margin-top:10px;">
+            <div class="skin-face" id="skin-result-face"><img id="skin-result-img" alt="" /></div>
+            <button class="btn primary" id="skin-apply-btn" data-i18n="skin.apply">Utiliser ce skin</button>
+          </div>
+          <p class="hint" id="skin-status"></p>
+        </div>
       </section>
 
       <!-- Écran Play -->
@@ -88,6 +106,7 @@
 
         <div class="btn-row" style="margin-top:20px;">
           <button class="btn primary" id="play-btn" data-i18n="play.play">Jouer</button>
+          <button class="btn" id="retry-launch-btn" data-i18n="play.retry" hidden>Réessayer</button>
         </div>
         <p class="hint" id="launch-progress"></p>
       </section>
@@ -99,6 +118,7 @@
           <input type="range" id="ram-slider" min="2048" max="16384" step="512" />
           <span id="ram-value">4096 Mo</span>
         </div>
+        <p class="hint" id="ram-suggestion"></p>
 
         <p class="panel-title" style="margin-top:20px;" data-i18n="settings.volume">Volume musique</p>
         <div class="ram-row">
@@ -112,7 +132,9 @@
 
         <div class="btn-row" style="margin-top:10px;">
           <button class="btn" id="open-folder-btn" data-i18n="settings.openFolder">Ouvrir le dossier du jeu</button>
+          <button class="btn" id="copy-logs-btn" data-i18n="settings.copyLogs">Copier les logs</button>
         </div>
+        <p class="hint" id="copy-logs-status"></p>
 
         <div class="btn-row" style="margin-top:10px;">
           <button class="btn" id="check-updates-btn" data-i18n="settings.checkUpdates">Vérifier les mises à jour</button>

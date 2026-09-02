@@ -14,9 +14,11 @@
 const { app, BrowserWindow } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fetch = require('node-fetch');
+const Store = require('electron-store');
 const { t } = require('./backendI18n');
 
 const GITHUB_REPO = 'ApollonBateau14/apo-launcher';
+const metaStore = new Store({ name: 'launcher-meta' });
 
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = false;
@@ -72,4 +74,25 @@ function installUpdate() {
   autoUpdater.quitAndInstall();
 }
 
-module.exports = { checkForUpdates, downloadUpdate, installUpdate };
+// Renvoie les notes de la release en cours, seulement la première fois
+// qu'on la détecte depuis une mise à jour (version différente de la
+// dernière vue) — pour afficher un changelog une fois après un auto-update,
+// pas à chaque lancement, et jamais à la toute première installation.
+async function getChangelogIfNew() {
+  const current = app.getVersion();
+  const lastSeen = metaStore.get('lastSeenVersion', null);
+  metaStore.set('lastSeenVersion', current);
+
+  if (!lastSeen || lastSeen === current) return null;
+
+  try {
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/tags/v${current}`);
+    if (!res.ok) return { version: current, notes: null };
+    const data = await res.json();
+    return { version: current, notes: data.body || null };
+  } catch {
+    return { version: current, notes: null };
+  }
+}
+
+module.exports = { checkForUpdates, downloadUpdate, installUpdate, getChangelogIfNew };

@@ -1,15 +1,18 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const Store = require('electron-store');
 const { pingServer } = require('./src/lib/serverPing');
 const { checkModpackUpdate } = require('./src/lib/modpack');
 const { launchGame, getGameDir } = require('./src/lib/launcher');
+const launchLog = require('./src/lib/launchLog');
 const discordPresence = require('./src/lib/discordPresence');
 const { t } = require('./src/lib/backendI18n');
 const { getCompatibleCatalog } = require('./src/lib/addons');
 const autoUpdate = require('./src/lib/autoUpdate');
 const msAuth = require('./src/lib/msAuth');
+const skins = require('./src/lib/skins');
 
 // Métadonnées des serveurs : pas sensible, ça reste dans le code (public sur GitHub).
 // Complète/adapte cette liste avec tes vrais serveurs et leurs manifests GitHub.
@@ -144,8 +147,13 @@ ipcMain.on('window-minimize', () => mainWindow.minimize());
 ipcMain.on('window-close', () => mainWindow.close());
 
 // ---- IPC: config utilisateur (pseudo, ram, volume musique) ----
-// appVersion n'est pas persisté : toujours lu depuis package.json/le build.
-ipcMain.handle('get-settings', () => ({ ...store.store, appVersion: app.getVersion() }));
+// appVersion et systemRamMb ne sont pas persistés : toujours lus en direct
+// (le système/le build peuvent changer entre deux lancements).
+ipcMain.handle('get-settings', () => ({
+  ...store.store,
+  appVersion: app.getVersion(),
+  systemRamMb: Math.round(os.totalmem() / 1024 / 1024)
+}));
 
 ipcMain.handle('set-username', (_e, username) => {
   store.set('username', username);
@@ -176,6 +184,49 @@ ipcMain.handle('ms-silent-login', async () => {
   if (account) store.set('msAccount', account);
   else store.delete('msAccount');
   return account;
+});
+
+// ---- IPC: skins (recherche par pseudo Minecraft réel + application) ----
+ipcMain.handle('lookup-skin', async (_e, username) => {
+  try {
+    const result = await skins.lookupSkinByUsername(username);
+    return result || { found: false };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+// Skin actuel : celui du compte Microsoft connecté (récupéré en direct
+// depuis Mojang) ou celui choisi manuellement en offline (sauvegardé).
+ipcMain.handle('get-current-skin', async () => {
+  const msAccount = store.get('msAccount', null);
+  if (msAccount) {
+    try {
+      const result = await skins.lookupSkinByUuid(msAccount.uuid);
+      return { skinUrl: result?.skinUrl || null, mode: 'microsoft' };
+    } catch {
+      return { skinUrl: null, mode: 'microsoft' };
+    }
+  }
+  return { skinUrl: store.get('offlineSkinUrl', null), mode: 'offline' };
+});
+
+ipcMain.handle('apply-skin', async (_e, skinUrl) => {
+  const msAccount = store.get('msAccount', null);
+  if (msAccount) {
+    try {
+      const auth = await msAuth.getLaunchAuth();
+      await skins.applySkinToMicrosoftAccount(auth.access_token, skinUrl);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+  // Offline : pas de vrai compte à modifier, juste un aperçu local
+  // sauvegardé (jamais visible par les autres joueurs en jeu — limitation
+  // du mode offline, voir README).
+  store.set('offlineSkinUrl', skinUrl);
+  return { success: true };
 });
 
 ipcMain.handle('set-ram', (_e, ramMb) => {
@@ -330,6 +381,12 @@ ipcMain.handle('launch-game', async () => {
   return launchGame({ username, ramMb, server, lang: lang(), enabledAddons, useMicrosoft });
 });
 
+// ---- IPC: copier les logs du dernier lancement (dépannage) ----
+ipcMain.handle('copy-logs', () => {
+  clipboard.writeText(launchLog.getText());
+  return true;
+});
+
 // ---- IPC: ouvrir le dossier de jeu du serveur sélectionné (dépannage) ----
 ipcMain.handle('open-game-folder', () => {
   const server = getSelectedServer();
@@ -345,5 +402,6 @@ ipcMain.handle('open-game-folder', () => {
 // En dev (app non empaquetée), retombe sur une simple lecture de la
 // dernière Release GitHub (pas de vrai téléchargement possible en dev).
 ipcMain.handle('check-for-updates', () => autoUpdate.checkForUpdates(lang()));
+ipcMain.handle('get-changelog-if-new', () => autoUpdate.getChangelogIfNew());
 ipcMain.handle('download-update', () => autoUpdate.downloadUpdate());
 ipcMain.handle('install-update', () => autoUpdate.installUpdate());

@@ -1,5 +1,11 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Garde-fou : un élément [hidden] doit TOUJOURS disparaître, même si une
+   classe plus bas dans ce fichier lui donne un display explicite (ex:
+   .skin-row { display:flex } gagnait sur la règle [hidden] par défaut du
+   navigateur, même spécificité → dernière déclarée l'emportait). */
+[hidden] { display: none !important; }
+
 /* Désactive la sélection de texte façon "site web" partout dans l'app,
    sauf dans les champs de saisie (pseudo) où on en a besoin. */
 * {
@@ -457,6 +463,30 @@ select.field option {
   cursor: pointer;
 }
 .checkbox-row span { font-size: 14px; }
+
+/* Aperçu skin : crop pixel-perfect du visage (8x8 dans la texture 64x64)
+   en CSS pur, zéro service tiers (crafatar/mc-heads etc.) — la texture
+   fait toujours 64px de large (legacy 64x32 ou moderne 64x64), donc un
+   facteur d'échelle x8 place systématiquement le visage au bon endroit. */
+.skin-row { display: flex; align-items: center; gap: 12px; }
+.skin-face {
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.25);
+  flex-shrink: 0;
+}
+.skin-face img {
+  /* Échelle x6 (48px / 8px de visage) : la texture entière (64px de large)
+     devient 384px, et le visage (à 8,8 dans l'original) se retrouve à
+     48,48 dans l'image agrandie — d'où le décalage négatif ci-dessous. */
+  width: 384px;
+  height: auto;
+  margin-left: -48px;
+  margin-top: -48px;
+  image-rendering: pixelated;
+}
 
 .ram-row { display: flex; align-items: center; gap: 12px; }
 .ram-row input[type="range"] { flex: 1; }

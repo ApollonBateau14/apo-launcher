@@ -21,15 +21,29 @@ const TRANSLATIONS = {
     'connexion.msConnectedAs': 'Connecté avec Microsoft',
     'connexion.msLoggingIn': 'Connexion en cours…',
 
+    'skin.title': 'Skin',
+    'skin.searchPlaceholder': 'Pseudo Minecraft (ex: Notch)',
+    'skin.search': 'Chercher',
+    'skin.apply': 'Utiliser ce skin',
+    'skin.searching': 'Recherche…',
+    'skin.notFound': 'Aucun compte Minecraft avec ce pseudo.',
+    'skin.applied': 'Skin appliqué.',
+    'skin.appliedOfflineNote': "Skin appliqué (aperçu local uniquement — les autres joueurs ne le verront pas en jeu sans compte Microsoft).",
+    'skin.error': 'Erreur : {{message}}',
+
     'play.serverLabel': 'Serveur',
     'play.addServer': '+ Ajouter un serveur',
     'play.play': 'Jouer',
+    'play.retry': 'Réessayer',
 
     'settings.ram': 'Mémoire allouée (RAM)',
+    'settings.ramSuggested': 'Suggéré pour ta machine : {{value}} Go (cliquer pour appliquer)',
     'settings.volume': 'Volume musique',
     'settings.language': 'Langue',
     'settings.save': 'Enregistrer',
     'settings.openFolder': 'Ouvrir le dossier du jeu',
+    'settings.copyLogs': 'Copier les logs',
+    'settings.copyLogsDone': 'Logs copiés dans le presse-papier.',
     'settings.checkUpdates': 'Vérifier les mises à jour',
 
     'modal.defaultTitle': 'Modifier le serveur',
@@ -81,6 +95,10 @@ const TRANSLATIONS = {
     'update.downloadBtn': 'Télécharger',
     'update.installBtn': 'Redémarrer et installer',
 
+    'changelog.title': 'Nouveautés — v{{version}}',
+    'changelog.noNotes': "Mise à jour installée, pas de notes de version disponibles.",
+    'changelog.close': 'Fermer',
+
     'addons.mods': 'Mods',
     'addons.shaders': 'Shaders',
     'addons.modsTitle': 'Mods optionnels',
@@ -103,15 +121,29 @@ const TRANSLATIONS = {
     'connexion.msConnectedAs': 'Signed in with Microsoft',
     'connexion.msLoggingIn': 'Signing in…',
 
+    'skin.title': 'Skin',
+    'skin.searchPlaceholder': 'Minecraft username (e.g. Notch)',
+    'skin.search': 'Search',
+    'skin.apply': 'Use this skin',
+    'skin.searching': 'Searching…',
+    'skin.notFound': 'No Minecraft account with that username.',
+    'skin.applied': 'Skin applied.',
+    'skin.appliedOfflineNote': "Skin applied (local preview only — other players won't see it in-game without a Microsoft account).",
+    'skin.error': 'Error: {{message}}',
+
     'play.serverLabel': 'Server',
     'play.addServer': '+ Add a server',
     'play.play': 'Play',
+    'play.retry': 'Retry',
 
     'settings.ram': 'Allocated memory (RAM)',
+    'settings.ramSuggested': 'Suggested for your machine: {{value}} GB (click to apply)',
     'settings.volume': 'Music volume',
     'settings.language': 'Language',
     'settings.save': 'Save',
     'settings.openFolder': 'Open game folder',
+    'settings.copyLogs': 'Copy logs',
+    'settings.copyLogsDone': 'Logs copied to clipboard.',
     'settings.checkUpdates': 'Check for updates',
 
     'modal.defaultTitle': 'Edit server',
@@ -162,6 +194,10 @@ const TRANSLATIONS = {
     'update.error': 'Update error: {{message}}',
     'update.downloadBtn': 'Download',
     'update.installBtn': 'Restart and install',
+
+    'changelog.title': "What's new — v{{version}}",
+    'changelog.noNotes': 'Update installed, no release notes available.',
+    'changelog.close': 'Close',
 
     'addons.mods': 'Mods',
     'addons.shaders': 'Shaders',

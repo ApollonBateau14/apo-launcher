@@ -16,9 +16,12 @@ const { installEnabledAddons } = require('./addons');
 const { resolveServerAddress } = require('./serverPing');
 const discordPresence = require('./discordPresence');
 const msAuth = require('./msAuth');
+const launchLog = require('./launchLog');
 const { t } = require('./backendI18n');
 
 async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons = [], useMicrosoft = false }) {
+  launchLog.reset();
+
   // Pseudo requis seulement en offline — connecté avec Microsoft, le pseudo
   // vient du vrai compte, pas d'un champ texte.
   if (!useMicrosoft && (!username || username.trim().length === 0)) {
@@ -27,6 +30,8 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
   if (!server) {
     return { success: false, error: t(lang, 'noServerSelected') };
   }
+
+  launchLog.push(`Lancement demandé — serveur=${server.name} (${server.ip}:${server.port}) loader=${server.loader} mc=${server.mcVersion} auth=${useMicrosoft ? 'microsoft' : 'offline'}`);
 
   const launcher = new Client();
   const gameDir = getGameDir(server.id);
@@ -47,6 +52,7 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
   try {
     javaPath = await ensureJava(server.mcVersion, sendProgress);
   } catch (err) {
+    launchLog.push(`ERREUR Java : ${err.message}`);
     return { success: false, error: t(lang, 'javaError', err.message) };
   }
 
@@ -58,6 +64,7 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
     sendProgress({ task: 'loader-check', loader: server.loader });
     loaderOpts = await getLoaderLaunchOptions(server, gameDir);
   } catch (err) {
+    launchLog.push(`ERREUR loader (${server.loader}) : ${err.message}`);
     return { success: false, error: t(lang, 'loaderError', server.loader, err.message) };
   }
 
@@ -69,6 +76,7 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
       sendProgress({ task: 'modpack-download', ...fileProgress });
     });
   } catch (err) {
+    launchLog.push(`ERREUR modpack : ${err.message}`);
     return { success: false, error: t(lang, 'modpackError', err.message) };
   }
 
@@ -78,6 +86,7 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
     try {
       await installEnabledAddons(server, enabledAddons, sendProgress);
     } catch (err) {
+      launchLog.push(`ERREUR addons optionnels : ${err.message}`);
       return { success: false, error: t(lang, 'modpackError', err.message) };
     }
   }
@@ -96,6 +105,7 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
     try {
       authorization = await msAuth.getLaunchAuth();
     } catch (err) {
+      launchLog.push(`ERREUR compte Microsoft : ${err.message}`);
       return { success: false, error: t(lang, 'msAuthError', err.message) };
     }
   } else {
@@ -125,10 +135,11 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
 
   // Écouteurs branchés AVANT le launch (sinon on rate les événements
   // émis pendant le téléchargement des assets/le démarrage de la JVM).
-  launcher.on('debug', (msg) => console.log('[MCLC debug]', msg));
-  launcher.on('data', (msg) => console.log('[MCLC]', msg.toString()));
+  launcher.on('debug', (msg) => { console.log('[MCLC debug]', msg); launchLog.push(`[debug] ${msg}`); });
+  launcher.on('data', (msg) => { const line = msg.toString(); console.log('[MCLC]', line); launchLog.push(line.trimEnd()); });
   launcher.on('close', (code) => {
     console.log('Minecraft fermé, code', code);
+    launchLog.push(`Minecraft fermé, code ${code}`);
     discordPresence.setIdle();
   });
   launcher.on('progress', (progress) => {
@@ -144,9 +155,11 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
   try {
     minecraftProcess = await launcher.launch(opts);
   } catch (err) {
+    launchLog.push(`ERREUR launch() : ${err.message}`);
     return { success: false, error: t(lang, 'modpackError', err.message) };
   }
   if (!minecraftProcess) {
+    launchLog.push('launch() a résolu sans process (échec interne à MCLC, voir logs au-dessus)');
     return { success: false, error: t(lang, 'launchFailed') };
   }
 
