@@ -7,7 +7,7 @@ const RPC = require('discord-rpc');
 // Crée ta propre appli sur https://discord.com/developers/applications
 // (gratuit, 2 min) puis colle son "Application ID" ici. Sans ça, la
 // Rich Presence reste désactivée (pas d'erreur, juste rien n'apparaît).
-const CLIENT_ID = 'TON_CLIENT_ID_DISCORD';
+const CLIENT_ID = '1544693268900614225';
 
 let client = null;
 let ready = false;

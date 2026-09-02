@@ -108,6 +108,10 @@ function createWindow() {
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
+    // Sans ça, la fenêtre (barre des tâches, alt-tab) affiche l'icône
+    // Electron par défaut — même si le .exe packagé, lui, a bien la bonne
+    // icône (définie séparément dans package.json → build.win.icon).
+    icon: path.join(__dirname, 'src', 'assets', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
