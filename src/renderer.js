@@ -494,16 +494,21 @@ document.getElementById('ms-logout-btn').addEventListener('click', async () => {
 
 // --- Skin (recherche par pseudo Minecraft réel + aperçu/application 3D) ---
 // skinview3d (Three.js) — même style de rendu que le menu de
-// personnalisation du jeu, mouse-drag pour tourner, légère rotation auto.
+// personnalisation du jeu. Face à l'écran par défaut (pas de rotation
+// auto), tourné seulement à la souris — et uniquement gauche/droite (pas
+// d'inclinaison verticale ni de zoom molette, juste l'azimut).
 const skinViewer = new skinview3d.SkinViewer({
   canvas: document.getElementById('skin-3d-canvas'),
-  width: 110,
-  height: 160
+  width: 150,
+  height: 220,
+  pixelRatio: Math.max(window.devicePixelRatio || 1, 2) // plus net, canvas petit sinon flou
 });
 skinViewer.animation = new skinview3d.IdleAnimation();
-skinViewer.autoRotate = true;
-skinViewer.autoRotateSpeed = 0.6;
 skinViewer.zoom = 0.75;
+skinViewer.controls.enableZoom = false;
+skinViewer.controls.enablePan = false;
+skinViewer.controls.minPolarAngle = Math.PI / 2;
+skinViewer.controls.maxPolarAngle = Math.PI / 2;
 
 async function loadCurrentSkin() {
   const { skinUrl } = await window.api.getCurrentSkin();
