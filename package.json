@@ -20,7 +20,8 @@
     "electron-updater": "^6.3.0",
     "minecraft-launcher-core": "^3.18.1",
     "msmc": "^5.0.5",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "skinview3d": "^3.4.2"
   },
   "build": {
     "appId": "com.apo.launcher",

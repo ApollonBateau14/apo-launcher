@@ -492,16 +492,23 @@ document.getElementById('ms-logout-btn').addEventListener('click', async () => {
   showMsAccount(null);
 });
 
-// --- Skin (recherche par pseudo Minecraft réel + application) ---
+// --- Skin (recherche par pseudo Minecraft réel + aperçu/application 3D) ---
+// skinview3d (Three.js) — même style de rendu que le menu de
+// personnalisation du jeu, mouse-drag pour tourner, légère rotation auto.
+const skinViewer = new skinview3d.SkinViewer({
+  canvas: document.getElementById('skin-3d-canvas'),
+  width: 110,
+  height: 160
+});
+skinViewer.animation = new skinview3d.IdleAnimation();
+skinViewer.autoRotate = true;
+skinViewer.autoRotateSpeed = 0.6;
+skinViewer.zoom = 0.75;
+
 async function loadCurrentSkin() {
   const { skinUrl } = await window.api.getCurrentSkin();
-  const face = document.getElementById('skin-current-face');
-  if (skinUrl) {
-    document.getElementById('skin-current-img').src = skinUrl;
-    face.hidden = false;
-  } else {
-    face.hidden = true;
-  }
+  if (skinUrl) skinViewer.loadSkin(skinUrl);
+  else skinViewer.loadSkin(null);
 }
 loadCurrentSkin();
 
@@ -510,10 +517,10 @@ let foundSkin = null;
 document.getElementById('skin-search-btn').addEventListener('click', async () => {
   const username = document.getElementById('skin-search-input').value.trim();
   const statusEl = document.getElementById('skin-status');
-  const resultRow = document.getElementById('skin-result-row');
+  const applyBtn = document.getElementById('skin-apply-btn');
   if (!username) return;
 
-  resultRow.hidden = true;
+  applyBtn.hidden = true;
   foundSkin = null;
   statusEl.textContent = window.i18n.t('skin.searching');
 
@@ -525,8 +532,8 @@ document.getElementById('skin-search-btn').addEventListener('click', async () =>
   } else {
     statusEl.textContent = '';
     foundSkin = result;
-    document.getElementById('skin-result-img').src = result.skinUrl;
-    resultRow.hidden = false;
+    skinViewer.loadSkin(result.skinUrl); // aperçu 3D immédiat, avant même d'appliquer
+    applyBtn.hidden = false;
   }
 });
 
@@ -540,7 +547,6 @@ document.getElementById('skin-apply-btn').addEventListener('click', async () => 
   }
   const account = document.getElementById('ms-account-connected').hidden ? null : true;
   statusEl.textContent = window.i18n.t(account ? 'skin.applied' : 'skin.appliedOfflineNote');
-  await loadCurrentSkin();
 });
 
 // --- Écran Paramètres ---

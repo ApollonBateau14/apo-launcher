@@ -25,11 +25,12 @@ npm start
   launchers alternatifs). Récupère le vrai pseudo/UUID automatiquement, reste connecté d'un lancement à l'autre
   (refresh token mis en cache), déconnexion possible depuis l'écran Connexion
 - Skin : recherche par pseudo Minecraft réel via l'API officielle Mojang (pas de scraping NameMC — pas d'API
-  publique là-bas), aperçu du visage en CSS pur (crop pixel-perfect, zéro service tiers). Connecté avec
-  Microsoft : applique vraiment le skin trouvé sur le compte (visible par tout le monde en jeu). En offline :
-  aperçu local uniquement dans l'appli, **pas visible par les autres joueurs en jeu** (limitation du mode
-  offline — un vrai skin partagé nécessiterait d'héberger un serveur de session Minecraft alternatif que tous
-  les amis pointent, pas fait pour l'instant, voir "reste à faire")
+  publique là-bas), avec aperçu du personnage en 3D (`skinview3d`/Three.js, même style que le menu de
+  personnalisation du jeu — rotation auto, drag à la souris). Connecté avec Microsoft : applique vraiment le
+  skin trouvé sur le compte (visible par tout le monde en jeu). En offline : aperçu local uniquement dans
+  l'appli, **pas visible par les autres joueurs en jeu** (limitation du mode offline — un vrai skin partagé
+  nécessiterait d'héberger un serveur de session Minecraft alternatif que tous les amis pointent, pas fait
+  pour l'instant, voir "reste à faire")
 
 **Serveurs**
 - Multi-serveurs : chaque serveur a sa version MC, son loader, son `manifestUrl` de modpack, son icône

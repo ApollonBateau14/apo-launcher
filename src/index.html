@@ -65,18 +65,13 @@
 
         <div id="skin-section" style="margin-top:22px;">
           <p class="panel-title" data-i18n="skin.title">Skin</p>
-          <div class="skin-row">
-            <div class="skin-face" id="skin-current-face" hidden><img id="skin-current-img" alt="" /></div>
-            <div style="flex:1;">
+          <div class="skin-3d-row">
+            <canvas id="skin-3d-canvas" width="110" height="160"></canvas>
+            <div class="skin-3d-controls">
               <input class="field" type="text" id="skin-search-input" data-i18n-placeholder="skin.searchPlaceholder" placeholder="Pseudo Minecraft (ex: Notch)" maxlength="16" />
+              <button class="btn" id="skin-search-btn" data-i18n="skin.search">Chercher</button>
+              <button class="btn primary" id="skin-apply-btn" data-i18n="skin.apply" hidden>Utiliser ce skin</button>
             </div>
-          </div>
-          <div class="btn-row" style="margin-top:8px;">
-            <button class="btn" id="skin-search-btn" data-i18n="skin.search">Chercher</button>
-          </div>
-          <div class="skin-row" id="skin-result-row" hidden style="margin-top:10px;">
-            <div class="skin-face" id="skin-result-face"><img id="skin-result-img" alt="" /></div>
-            <button class="btn primary" id="skin-apply-btn" data-i18n="skin.apply">Utiliser ce skin</button>
           </div>
           <p class="hint" id="skin-status"></p>
         </div>
@@ -182,6 +177,7 @@
 
   <script src="i18n.js"></script>
   <script src="particles.js"></script>
+  <script src="../node_modules/skinview3d/bundles/skinview3d.bundle.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

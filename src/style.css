@@ -464,29 +464,17 @@ select.field option {
 }
 .checkbox-row span { font-size: 14px; }
 
-/* Aperçu skin : crop pixel-perfect du visage (8x8 dans la texture 64x64)
-   en CSS pur, zéro service tiers (crafatar/mc-heads etc.) — la texture
-   fait toujours 64px de large (legacy 64x32 ou moderne 64x64), donc un
-   facteur d'échelle x8 place systématiquement le visage au bon endroit. */
-.skin-row { display: flex; align-items: center; gap: 12px; }
-.skin-face {
-  width: 48px;
-  height: 48px;
-  overflow: hidden;
-  border-radius: 8px;
-  background: rgba(0,0,0,0.25);
+/* Aperçu skin : personnage 3D (skinview3d/Three.js) à gauche, comme dans
+   le menu de personnalisation du jeu — contrôles de recherche à droite. */
+.skin-3d-row { display: flex; align-items: flex-start; gap: 14px; }
+#skin-3d-canvas {
+  border-radius: 12px;
+  background: rgba(0,0,0,0.2);
   flex-shrink: 0;
+  cursor: grab;
 }
-.skin-face img {
-  /* Échelle x6 (48px / 8px de visage) : la texture entière (64px de large)
-     devient 384px, et le visage (à 8,8 dans l'original) se retrouve à
-     48,48 dans l'image agrandie — d'où le décalage négatif ci-dessous. */
-  width: 384px;
-  height: auto;
-  margin-left: -48px;
-  margin-top: -48px;
-  image-rendering: pixelated;
-}
+#skin-3d-canvas:active { cursor: grabbing; }
+.skin-3d-controls { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 
 .ram-row { display: flex; align-items: center; gap: 12px; }
 .ram-row input[type="range"] { flex: 1; }
