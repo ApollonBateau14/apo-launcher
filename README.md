@@ -9,39 +9,63 @@ npm start
 ```
 
 ## Ce qui est déjà fait
+
+**Interface**
 - Fenêtre sans bordure, transparente, style "liquid glass" (flou + fond image + particules dorées animées),
-  avec une fine bordure blanche semi-transparente autour de la fenêtre
-- 3 écrans : Connexion (pseudo), Play (liste de serveurs + statut + bouton jouer), Paramètres (RAM, changer pseudo)
-- **Multi-serveurs** : les métadonnées (`SERVERS_META` dans `main.js`) définissent un ou plusieurs serveurs,
-  chacun avec sa version MC, son loader (Fabric/NeoForge), et son propre `manifestUrl` de modpack.
-  Les mods et le dossier de jeu sont séparés par serveur (pas de mélange entre ApoCreate et FemboyServer par ex).
-- **IP/port séparés du code** : jamais dans `main.js` ni sur GitHub. Ils viennent soit de `servers.ip.json`
-  (fichier local, ignoré par git), soit modifiés directement dans l'appli via le bouton ⚙ sur chaque carte serveur.
-  Sensible car l'auth est offline : une IP + un pseudo whitelisté qui traînent en public = n'importe qui peut se
-  connecter avec ce pseudo.
-- **Ajouter un serveur depuis l'appli** : bouton "+ Ajouter un serveur" sur l'écran Play (nom, IP, port, loader,
-  version, manifest). Persisté en local (`electron-store`), pas besoin de toucher au code.
-- Pseudo et RAM sauvegardés en local (`electron-store`), communs à tous les serveurs
-- Ping réel du serveur sélectionné (protocole officiel Minecraft) : en ligne/hors ligne, nombre de joueurs, ping
-- Squelette de vérification du modpack via un `manifest.json` distant par serveur (comparaison de hash)
-- Squelette de lancement du jeu via `minecraft-launcher-core` (télécharge le client vanilla + gère l'auth offline)
-- Code source hébergé sur [github.com/ApollonBateau14/apo-launcher](https://github.com/ApollonBateau14/apo-launcher) (public — sans IP ni whitelist)
+  fine bordure blanche semi-transparente, barre de titre en verre
+- 3 écrans : Connexion (pseudo), Play (liste de serveurs + statut + mods/shaders + jouer), Paramètres
+- Français/English — sélecteur en drapeaux SVG en bas à gauche, anglais par défaut, traduit aussi les
+  messages d'erreur générés côté back-end (pas juste l'UI statique)
 - Icône de l'appli/installeur (`src/assets/icon.ico`, multi-résolution 16→256px)
 
-## Ce qu'il reste à faire avant que ça tourne vraiment
+**Serveurs**
+- Multi-serveurs : chaque serveur a sa version MC, son loader, son `manifestUrl` de modpack, son icône
+  (auto-récupérée via le ping Minecraft si non renseignée)
+- IP/port jamais dans le code ni sur GitHub — `servers.ip.json` (local, ignoré par git) ou saisis à la main
+  via le bouton ⚙ sur chaque carte serveur
+- Ajout, édition (IP, port, loader, version, icône) et suppression de serveur depuis l'appli — persistant
+  même pour les serveurs définis dans le code
+- Ping réel (protocole officiel Minecraft) : en ligne/hors ligne, joueurs, ping
 
-1. **Héberger les modpacks sur GitHub** :
-   - Un dossier par serveur (ex `modpack-apocreate/`, `modpack-femboyserver/`) avec les `.jar` + un `manifest.json` chacun,
-     dans ce repo ou un autre repo public dédié
-   - Renseigner `manifestUrl` pour chaque serveur dans `SERVERS_META` (`main.js`)
+**Lancement du jeu**
+- Java auto-provisionné : vérifie/télécharge un JRE Temurin compatible avec la version MC du serveur si le
+  Java système ne convient pas (jamais touché, isolé dans `userData/jre/`)
+- Profil du loader généré avant le lancement : **Fabric** entièrement automatique (API meta.fabricmc.net),
+  **Forge/NeoForge** via l'installeur officiel (nécessite `loaderVersion` renseigné — codé selon la doc MCLC,
+  pas testé en conditions réelles faute de serveur Forge/NeoForge)
+- Vrais mods téléchargés avant le lancement : `.mrpack` Modrinth (slug nu, lien modrinth.com, ou lien direct —
+  résolu automatiquement selon la version/loader du serveur, API publique sans clé) ou `manifest.json` maison ;
+  vérifie la compatibilité MC/loader **avant** de télécharger quoi que ce soit
+- Mods/shaders optionnels (bouton "Mods"/"Shaders" sur l'écran Play) : Fabulously Optimized + Fresh
+  Animations activés par défaut, + Minimap, + une sélection de shaders (Photon, Solas, Complementary,
+  AstraLex, MakeUp). Le loader de shader (Iris/Oculus) s'installe seul quand un shader est activé, sans
+  dupliquer s'il est déjà fourni par un modpack
+- Rejoint directement le monde au clic sur Jouer (`quickPlay`, plus besoin de cliquer dans le menu Minecraft)
+- Rich Presence Discord (code prêt — nécessite un `CLIENT_ID` dans `src/lib/discordPresence.js`, à créer sur
+  discord.com/developers/applications ; sans ça, reste désactivée proprement)
+- Musique de fond qui baisse en fondu au lancement du jeu
 
-2. **Profil du loader (Fabric/NeoForge)** — `src/lib/launcher.js` a un TODO : il faut télécharger/générer
-   le profil du loader propre à chaque serveur avant de lancer le jeu (sinon MCLC lance du vanilla pur, sans mods).
+**Paramètres**
+- RAM, volume musique, langue, ouvrir le dossier de jeu, vérifier les mises à jour (API GitHub Releases —
+  vérification manuelle uniquement, voir "reste à faire")
 
-3. **electron-builder / electron-updater** — la config `publish` dans `package.json` pointe encore vers
-   `TON-PSEUDO-GITHUB` à remplacer par `ApollonBateau14`, pour que l'auto-update du launcher fonctionne via GitHub Releases.
+**Distribution**
+- Code source public : [github.com/ApollonBateau14/apo-launcher](https://github.com/ApollonBateau14/apo-launcher)
+- `npm run dist` génère un vrai installeur Windows (NSIS) — testé, fonctionne
 
-4. **SmartScreen Windows** — l'exe ne sera pas signé (signature payante), donc au premier lancement
-   Windows va afficher un avertissement. À prévenir tes potes : "Informations complémentaires → Exécuter quand même".
+## Ce qu'il reste à faire
+
+1. **Auto-update réel** — `electron-updater` est en dépendance mais jamais branché dans le code. Le bouton
+   "Vérifier les mises à jour" ne fait qu'une vérification manuelle (API GitHub), il ne télécharge/installe
+   rien tout seul. Nécessite d'avoir publié une première Release GitHub pour le tester.
+
+2. **Héberger les modpacks** — `manifestUrl` par serveur accepte déjà un slug/lien Modrinth ou un
+   `manifest.json` maison (voir ci-dessus) ; reste à le renseigner pour chacun de tes serveurs.
+
+3. **SmartScreen Windows** — l'exe n'est pas signé (signature payante), donc au premier lancement Windows va
+   avertir tes potes. À leur expliquer : "Informations complémentaires → Exécuter quand même".
+
+4. **Forge/NeoForge non testés en conditions réelles** — le code existe (voir `src/lib/loaderProfile.js`)
+   mais seul Fabric a été vérifié avec un vrai serveur.
 
 On avance étape par étape sur ces points quand tu veux.

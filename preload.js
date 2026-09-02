@@ -8,6 +8,9 @@ contextBridge.exposeInMainWorld('api', {
   setUsername: (username) => ipcRenderer.invoke('set-username', username),
   setRam: (ramMb) => ipcRenderer.invoke('set-ram', ramMb),
   setMusicVolume: (volumePercent) => ipcRenderer.invoke('set-music-volume', volumePercent),
+  setLanguage: (lang) => ipcRenderer.invoke('set-language', lang),
+  getAddonCatalog: () => ipcRenderer.invoke('get-addon-catalog'),
+  setEnabledAddons: (ids) => ipcRenderer.invoke('set-enabled-addons', ids),
   openGameFolder: () => ipcRenderer.invoke('open-game-folder'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
 

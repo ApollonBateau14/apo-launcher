@@ -26,7 +26,8 @@
     "productName": "Apo Launcher",
     "win": {
       "target": "nsis",
-      "icon": "src/assets/icon.ico"
+      "icon": "src/assets/icon.ico",
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,
@@ -39,7 +40,7 @@
     ],
     "publish": {
       "provider": "github",
-      "owner": "TON-PSEUDO-GITHUB",
+      "owner": "ApollonBateau14",
       "repo": "apo-launcher"
     }
   }

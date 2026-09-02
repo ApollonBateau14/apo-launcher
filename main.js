@@ -7,6 +7,8 @@ const { pingServer } = require('./src/lib/serverPing');
 const { checkModpackUpdate } = require('./src/lib/modpack');
 const { launchGame, getGameDir } = require('./src/lib/launcher');
 const discordPresence = require('./src/lib/discordPresence');
+const { t } = require('./src/lib/backendI18n');
+const { getCatalog } = require('./src/lib/addons');
 
 // Repo GitHub utilisé pour la vérification manuelle des mises à jour
 // (bouton "Vérifier les mises à jour"), distinct de l'auto-update
@@ -86,6 +88,8 @@ const store = new Store({
     username: '',
     ramMb: 4096,
     musicVolume: 10,
+    language: 'en',
+    enabledAddons: ['fabulously-optimized', 'fresh-animations'],
     selectedServerId: SERVERS_META[0]?.id || '',
     removedServerIds: []
   }
@@ -94,6 +98,10 @@ const store = new Store({
 // Recalculé à chaque démarrage pour que les métadonnées du code (nom, loader,
 // manifest…) restent à jour, sans perdre les IP/serveurs ajoutés en jeu.
 store.set('servers', buildServersList());
+
+function lang() {
+  return store.get('language', 'en');
+}
 
 let mainWindow;
 
@@ -152,6 +160,19 @@ ipcMain.handle('set-music-volume', (_e, volumePercent) => {
   return true;
 });
 
+ipcMain.handle('set-language', (_e, lang) => {
+  store.set('language', lang);
+  return true;
+});
+
+// ---- IPC: catalogue + sélection des mods/shaders optionnels ----
+ipcMain.handle('get-addon-catalog', () => getCatalog());
+
+ipcMain.handle('set-enabled-addons', (_e, ids) => {
+  store.set('enabledAddons', ids);
+  return true;
+});
+
 // ---- IPC: liste des serveurs + sélection ----
 ipcMain.handle('get-servers', () => store.get('servers'));
 
@@ -178,7 +199,7 @@ ipcMain.handle('update-server', (_e, { serverId, ip, port, loader, mcVersion, ic
 ipcMain.handle('remove-server', (_e, serverId) => {
   const servers = store.get('servers', []);
   if (servers.length <= 1) {
-    return { success: false, error: 'Impossible de supprimer le dernier serveur.' };
+    return { success: false, error: t(lang(), 'cantDeleteLastServer') };
   }
 
   const codeIds = new Set(SERVERS_META.map((s) => s.id));
@@ -236,7 +257,7 @@ function getSelectedServer() {
 ipcMain.handle('ping-server', async () => {
   const server = getSelectedServer();
   if (!server.ip) {
-    return { online: false, error: 'IP non configurée — clique sur ⚙ pour la renseigner.' };
+    return { online: false, error: t(lang(), 'ipNotConfigured') };
   }
   try {
     return await pingServer(server.ip, server.port);
@@ -272,9 +293,10 @@ ipcMain.handle('launch-game', async () => {
   const { username, ramMb } = store.store;
   const server = getSelectedServer();
   if (!server.ip) {
-    return { success: false, error: 'IP non configurée pour ce serveur — clique sur ⚙ pour la renseigner.' };
+    return { success: false, error: t(lang(), 'ipNotConfigured') };
   }
-  return launchGame({ username, ramMb, server });
+  const enabledAddons = store.get('enabledAddons', []);
+  return launchGame({ username, ramMb, server, lang: lang(), enabledAddons });
 });
 
 // ---- IPC: ouvrir le dossier de jeu du serveur sélectionné (dépannage) ----
@@ -292,10 +314,10 @@ ipcMain.handle('check-for-updates', async () => {
   try {
     const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
     if (res.status === 404) {
-      return { error: 'Aucune release publiée sur GitHub pour le moment.' };
+      return { error: t(lang(), 'noGithubRelease') };
     }
     if (!res.ok) {
-      return { error: `Erreur GitHub (HTTP ${res.status})` };
+      return { error: t(lang(), 'githubError', res.status) };
     }
     const data = await res.json();
     const latest = (data.tag_name || '').replace(/^v/, '');

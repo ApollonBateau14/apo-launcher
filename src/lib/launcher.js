@@ -12,14 +12,16 @@ const { BrowserWindow } = require('electron');
 const { getGameDir, syncModpack } = require('./modpack');
 const { ensureJava } = require('./javaRuntime');
 const { getLoaderLaunchOptions } = require('./loaderProfile');
+const { installEnabledAddons } = require('./addons');
 const discordPresence = require('./discordPresence');
+const { t } = require('./backendI18n');
 
-async function launchGame({ username, ramMb, server }) {
+async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons = [] }) {
   if (!username || username.trim().length === 0) {
-    return { success: false, error: 'Pseudo manquant' };
+    return { success: false, error: t(lang, 'usernameMissing') };
   }
   if (!server) {
-    return { success: false, error: 'Aucun serveur sélectionné' };
+    return { success: false, error: t(lang, 'noServerSelected') };
   }
 
   const launcher = new Client();
@@ -41,7 +43,7 @@ async function launchGame({ username, ramMb, server }) {
   try {
     javaPath = await ensureJava(server.mcVersion, sendProgress);
   } catch (err) {
-    return { success: false, error: `Java : ${err.message}` };
+    return { success: false, error: t(lang, 'javaError', err.message) };
   }
 
   // Génère/télécharge le profil du bon loader (Fabric/Forge/NeoForge, ou
@@ -52,7 +54,7 @@ async function launchGame({ username, ramMb, server }) {
     sendProgress({ task: 'loader-check', loader: server.loader });
     loaderOpts = await getLoaderLaunchOptions(server, gameDir);
   } catch (err) {
-    return { success: false, error: `Loader (${server.loader}) : ${err.message}` };
+    return { success: false, error: t(lang, 'loaderError', server.loader, err.message) };
   }
 
   // Télécharge/vérifie les mods du modpack (manifestUrl) avant le lancement.
@@ -63,7 +65,17 @@ async function launchGame({ username, ramMb, server }) {
       sendProgress({ task: 'modpack-download', ...fileProgress });
     });
   } catch (err) {
-    return { success: false, error: `Modpack : ${err.message}` };
+    return { success: false, error: t(lang, 'modpackError', err.message) };
+  }
+
+  // Mods/shaders optionnels activés par le joueur (voir addons.js) —
+  // installés en plus du modpack du serveur, jamais requis par celui-ci.
+  if (enabledAddons.length > 0) {
+    try {
+      await installEnabledAddons(server, enabledAddons, sendProgress);
+    } catch (err) {
+      return { success: false, error: t(lang, 'modpackError', err.message) };
+    }
   }
 
   const opts = {
@@ -88,9 +100,8 @@ async function launchGame({ username, ramMb, server }) {
     }
   };
 
-  launcher.launch(opts);
-  discordPresence.setPlaying(server.name);
-
+  // Écouteurs branchés AVANT le launch (sinon on rate les événements
+  // émis pendant le téléchargement des assets/le démarrage de la JVM).
   launcher.on('debug', (msg) => console.log('[MCLC debug]', msg));
   launcher.on('data', (msg) => console.log('[MCLC]', msg.toString()));
   launcher.on('close', (code) => {
@@ -101,6 +112,23 @@ async function launchGame({ username, ramMb, server }) {
     // progress MCLC brut : { type, task, total }
     sendProgress({ task: 'mc-download', ...progress });
   });
+
+  // Attendu (pas fire-and-forget) : MCLC résout une fois le process Java
+  // réellement lancé — c'est CE moment-là qui doit effacer le texte de
+  // progression côté UI, pas l'appel IPC lui-même (qui répondait avant
+  // même que le téléchargement ait commencé, laissant le texte bloqué).
+  let minecraftProcess;
+  try {
+    minecraftProcess = await launcher.launch(opts);
+  } catch (err) {
+    return { success: false, error: t(lang, 'modpackError', err.message) };
+  }
+  if (!minecraftProcess) {
+    return { success: false, error: t(lang, 'launchFailed') };
+  }
+
+  discordPresence.setPlaying(server.name);
+  sendProgress({ task: 'launched' });
 
   return { success: true };
 }
