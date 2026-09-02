@@ -203,10 +203,10 @@ html {
 .screen { display: none; }
 .screen.active {
   display: block;
-  flex: 1;
-  min-height: 0; /* indispensable pour qu'un enfant flex accepte de scroller au lieu de déborder */
-  overflow-y: auto;
-  padding-right: 6px;
+  /* Pas de scroll ici — l'éditeur skin (qui en avait besoin, beaucoup de
+     contenu) est devenu un overlay séparé, plus un .screen classique. Login/
+     Play/Paramètres doivent tenir dans la hauteur fixe du panneau sans
+     scroller (voir .server-list plus bas pour Play, qui dépassait sinon). */
 }
 
 .panel-title {
@@ -271,7 +271,10 @@ select.field option {
   flex-direction: column;
   gap: 8px;
   margin-bottom: 16px;
-  max-height: 160px;
+  /* Réduit (était 160px) : avec 3+ serveurs, 160px poussait le reste de
+     l'écran (statut, bouton Jouer) hors du panneau — la liste scrolle
+     elle-même en interne plutôt que de faire déborder tout l'écran. */
+  max-height: 112px;
   overflow-y: auto;
 }
 
@@ -376,20 +379,19 @@ select.field option {
 /* Scrollbar fine façon liquid glass (doré, même thème que le reste de
    l'appli) au lieu du rendu Windows par défaut. */
 .modal::-webkit-scrollbar,
-.server-list::-webkit-scrollbar,
-.screen::-webkit-scrollbar,
 .skin-editor-right::-webkit-scrollbar {
   width: 8px;
 }
+.server-list::-webkit-scrollbar {
+  width: 5px; /* plus fine que les autres — discrète à côté des cartes serveur */
+}
 .modal::-webkit-scrollbar-track,
 .server-list::-webkit-scrollbar-track,
-.screen::-webkit-scrollbar-track,
 .skin-editor-right::-webkit-scrollbar-track {
   background: transparent;
 }
 .modal::-webkit-scrollbar-thumb,
 .server-list::-webkit-scrollbar-thumb,
-.screen::-webkit-scrollbar-thumb,
 .skin-editor-right::-webkit-scrollbar-thumb {
   /* Pas de border-clip transparent ici : combiné à border-radius, Chromium
      ne rendait l'arrondi qu'après un repaint (ex: au survol) — visible au
@@ -400,7 +402,6 @@ select.field option {
 }
 .modal::-webkit-scrollbar-thumb:hover,
 .server-list::-webkit-scrollbar-thumb:hover,
-.screen::-webkit-scrollbar-thumb:hover,
 .skin-editor-right::-webkit-scrollbar-thumb:hover {
   background: rgba(230,180,80,0.65);
 }
