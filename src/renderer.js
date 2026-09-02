@@ -44,6 +44,8 @@ function goToScreen(screenName) {
     loadServerList();
     refreshServerStatus();
     statusRefreshInterval = setInterval(refreshServerStatus, STATUS_REFRESH_MS);
+  } else if (screenName === 'skin') {
+    loadFriendGallery();
   }
 }
 
@@ -233,6 +235,12 @@ function closeModal() {
   modalOverlay.classList.remove('active');
   modalFields.innerHTML = '';
   modalSaveBtn.onclick = null;
+  // Remet le bouton dans son état par défaut — sinon un modal qui a
+  // personnalisé son texte/visibilité (ex: le changelog, "Fermer" + Annuler
+  // caché) "fuiterait" cet état vers le prochain modal ouvert (édition
+  // serveur, ajout d'ami, etc.), qui a besoin du "Enregistrer" habituel.
+  modalSaveBtn.textContent = window.i18n.t('modal.save');
+  modalCancelBtn.hidden = false;
 }
 modalCancelBtn.addEventListener('click', closeModal);
 modalOverlay.addEventListener('click', (e) => {
@@ -253,10 +261,7 @@ function openChangelogModal(changelog) {
 
   modalCancelBtn.hidden = true;
   modalSaveBtn.textContent = window.i18n.t('changelog.close');
-  modalSaveBtn.onclick = () => {
-    modalCancelBtn.hidden = false;
-    closeModal();
-  };
+  modalSaveBtn.onclick = closeModal; // closeModal remet déjà tout dans son état par défaut
   modalOverlay.classList.add('active');
 }
 
@@ -499,8 +504,8 @@ document.getElementById('ms-logout-btn').addEventListener('click', async () => {
 // d'inclinaison verticale ni de zoom molette, juste l'azimut).
 const skinViewer = new skinview3d.SkinViewer({
   canvas: document.getElementById('skin-3d-canvas'),
-  width: 150,
-  height: 220,
+  width: 140,
+  height: 190,
   pixelRatio: Math.max(window.devicePixelRatio || 1, 2) // plus net, canvas petit sinon flou
 });
 skinViewer.animation = new skinview3d.IdleAnimation();
@@ -552,6 +557,72 @@ document.getElementById('skin-apply-btn').addEventListener('click', async () => 
   }
   const account = document.getElementById('ms-account-connected').hidden ? null : true;
   statusEl.textContent = window.i18n.t(account ? 'skin.applied' : 'skin.appliedOfflineNote');
+});
+
+// --- Galerie d'amis (skins) — liste gérée à la main, voir main.js ---
+async function loadFriendGallery() {
+  const gallery = document.getElementById('skin-gallery');
+  gallery.innerHTML = '';
+  const friends = await window.api.getFriendSkins();
+
+  if (!friends.length) {
+    const empty = document.createElement('p');
+    empty.className = 'hint';
+    empty.textContent = window.i18n.t('skin.noFriends');
+    gallery.appendChild(empty);
+    return;
+  }
+
+  friends.forEach((friend) => {
+    const item = document.createElement('div');
+    item.className = 'skin-gallery-item';
+    item.title = friend.name;
+
+    const img = document.createElement('img');
+    img.src = friend.skinUrl;
+    img.alt = friend.name;
+    item.appendChild(img);
+
+    const remove = document.createElement('div');
+    remove.className = 'skin-gallery-remove';
+    remove.textContent = '×';
+    remove.addEventListener('click', async (e) => {
+      e.stopPropagation(); // ne pas déclencher la sélection du skin en dessous
+      await window.api.removeFriendSkin(friend.name);
+      loadFriendGallery();
+    });
+    item.appendChild(remove);
+
+    item.addEventListener('click', () => {
+      foundSkin = friend;
+      skinViewer.loadSkin(friend.skinUrl);
+      document.getElementById('skin-apply-btn').hidden = false;
+      document.getElementById('skin-status').textContent = '';
+    });
+
+    gallery.appendChild(item);
+  });
+}
+loadFriendGallery();
+
+document.getElementById('skin-add-friend-btn').addEventListener('click', () => {
+  modalTitle.textContent = window.i18n.t('skin.addFriendTitle');
+  modalFields.innerHTML = '';
+  const input = addModalField(window.i18n.t('skin.addFriendPlaceholder'), { placeholder: 'Notch' });
+  const errorEl = document.createElement('p');
+  errorEl.className = 'hint';
+  modalFields.appendChild(errorEl);
+
+  modalSaveBtn.onclick = async () => {
+    const result = await window.api.addFriendSkin(input.value.trim());
+    if (!result.success) {
+      errorEl.textContent = result.error;
+      return;
+    }
+    closeModal();
+    loadFriendGallery();
+  };
+  modalOverlay.classList.add('active');
 });
 
 // --- Écran Paramètres ---

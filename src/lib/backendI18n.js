@@ -19,7 +19,9 @@ const STRINGS = {
     loaderError: (loader, msg) => `Loader (${loader}) : ${msg}`,
     modpackError: (msg) => `Modpack : ${msg}`,
     msAuthError: (msg) => `Compte Microsoft : ${msg}`,
-    launchFailed: 'Le lancement a échoué (voir la console pour les détails).'
+    launchFailed: 'Le lancement a échoué (voir la console pour les détails).',
+    skinFriendAlreadyAdded: 'Déjà dans la liste.',
+    skinNotFound: 'Aucun compte Minecraft avec ce pseudo.'
   },
   en: {
     ipNotConfigured: 'IP not configured — click ⚙ to set it.',
@@ -32,7 +34,9 @@ const STRINGS = {
     loaderError: (loader, msg) => `Loader (${loader}): ${msg}`,
     modpackError: (msg) => `Modpack: ${msg}`,
     msAuthError: (msg) => `Microsoft account: ${msg}`,
-    launchFailed: 'Launch failed (see the console for details).'
+    launchFailed: 'Launch failed (see the console for details).',
+    skinFriendAlreadyAdded: 'Already in the list.',
+    skinNotFound: 'No Minecraft account with that username.'
   }
 };
 

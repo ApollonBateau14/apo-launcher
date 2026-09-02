@@ -477,6 +477,63 @@ select.field option {
 #skin-3d-canvas:active { cursor: grabbing; }
 .skin-3d-controls { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 
+/* Galerie des skins des amis (liste gérée à la main — pas d'API fiable
+   pour "qui est en ligne", voir main.js:get-friend-skins) */
+.skin-friends-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+.skin-friends-header .panel-title { margin-bottom: 0; }
+.skin-friends-header .btn { flex: none; padding: 6px 12px; font-size: 12px; }
+.skin-gallery {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 2px;
+  min-height: 48px;
+}
+.skin-gallery-item {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0,0,0,0.25);
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 2px solid transparent;
+  transition: border-color 0.15s ease;
+}
+.skin-gallery-item:hover { border-color: rgba(230,180,80,0.7); }
+.skin-gallery-item img {
+  /* Crop pixel-perfect du visage (8x8), même technique que l'aperçu 3D
+     de secours : échelle x5 (40px / 8px), donc texture entière -> 320px,
+     visage (à 8,8 dans l'original) -> 40,40 dans l'image agrandie. */
+  width: 320px;
+  height: auto;
+  margin-left: -40px;
+  margin-top: -40px;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.skin-gallery-remove {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  cursor: pointer;
+}
+.skin-gallery-remove:hover { background: rgba(200,60,60,0.9); }
+
 .ram-row { display: flex; align-items: center; gap: 12px; }
 .ram-row input[type="range"] { flex: 1; }
 #ram-value, #volume-value { font-size: 13px; min-width: 64px; text-align: right; }

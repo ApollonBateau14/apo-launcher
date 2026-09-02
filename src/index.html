@@ -69,7 +69,7 @@
       <section class="screen" id="screen-skin">
         <p class="panel-title" data-i18n="skin.title">Skin</p>
         <div class="skin-3d-row">
-          <canvas id="skin-3d-canvas" width="150" height="220"></canvas>
+          <canvas id="skin-3d-canvas" width="140" height="190"></canvas>
           <div class="skin-3d-controls">
             <input class="field" type="text" id="skin-search-input" data-i18n-placeholder="skin.searchPlaceholder" placeholder="Pseudo Minecraft (ex: Notch)" maxlength="16" />
             <button class="btn" id="skin-search-btn" data-i18n="skin.search">Chercher</button>
@@ -77,6 +77,12 @@
           </div>
         </div>
         <p class="hint" id="skin-status"></p>
+
+        <div class="skin-friends-header">
+          <p class="panel-title" data-i18n="skin.friendsTitle">Amis</p>
+          <button class="btn" id="skin-add-friend-btn" data-i18n="skin.addFriend">+ Ajouter</button>
+        </div>
+        <div class="skin-gallery" id="skin-gallery"></div>
       </section>
 
       <!-- Écran Play -->

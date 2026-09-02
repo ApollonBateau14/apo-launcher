@@ -229,6 +229,48 @@ ipcMain.handle('apply-skin', async (_e, skinUrl) => {
   return { success: true };
 });
 
+// ---- IPC: galerie d'amis (skins) ----
+// Liste gérée à la main (pas d'API pour "joueurs en ligne" fiable — le
+// sample du ping Minecraft est vide sur nos serveurs, proxy Velocity qui
+// ne le diffuse pas) : le joueur ajoute lui-même les pseudos de ses potes.
+ipcMain.handle('get-friend-skins', async () => {
+  const usernames = store.get('skinFriends', []);
+  const results = await Promise.all(usernames.map(async (name) => {
+    try {
+      const result = await skins.lookupSkinByUsername(name);
+      return result?.skinUrl ? result : null;
+    } catch {
+      return null;
+    }
+  }));
+  return results.filter(Boolean);
+});
+
+ipcMain.handle('add-friend-skin', async (_e, username) => {
+  const name = (username || '').trim();
+  if (!name) return { error: t(lang(), 'usernameMissing') };
+
+  const list = store.get('skinFriends', []);
+  if (list.some((n) => n.toLowerCase() === name.toLowerCase())) {
+    return { error: t(lang(), 'skinFriendAlreadyAdded') };
+  }
+
+  try {
+    const result = await skins.lookupSkinByUsername(name);
+    if (!result) return { error: t(lang(), 'skinNotFound') };
+    store.set('skinFriends', [...list, result.name]);
+    return { success: true };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('remove-friend-skin', (_e, username) => {
+  const list = store.get('skinFriends', []);
+  store.set('skinFriends', list.filter((n) => n.toLowerCase() !== username.toLowerCase()));
+  return true;
+});
+
 ipcMain.handle('set-ram', (_e, ramMb) => {
   store.set('ramMb', ramMb);
   return true;

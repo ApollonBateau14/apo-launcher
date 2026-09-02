@@ -31,6 +31,11 @@ const TRANSLATIONS = {
     'skin.applied': 'Skin appliqué.',
     'skin.appliedOfflineNote': "Skin appliqué (aperçu local uniquement — les autres joueurs ne le verront pas en jeu sans compte Microsoft).",
     'skin.error': 'Erreur : {{message}}',
+    'skin.friendsTitle': 'Amis',
+    'skin.addFriend': '+ Ajouter',
+    'skin.addFriendTitle': 'Ajouter un ami',
+    'skin.addFriendPlaceholder': 'Pseudo Minecraft',
+    'skin.noFriends': 'Aucun ami ajouté pour l’instant.',
 
     'play.serverLabel': 'Serveur',
     'play.addServer': '+ Ajouter un serveur',
@@ -132,6 +137,11 @@ const TRANSLATIONS = {
     'skin.applied': 'Skin applied.',
     'skin.appliedOfflineNote': "Skin applied (local preview only — other players won't see it in-game without a Microsoft account).",
     'skin.error': 'Error: {{message}}',
+    'skin.friendsTitle': 'Friends',
+    'skin.addFriend': '+ Add',
+    'skin.addFriendTitle': 'Add a friend',
+    'skin.addFriendPlaceholder': 'Minecraft username',
+    'skin.noFriends': 'No friends added yet.',
 
     'play.serverLabel': 'Server',
     'play.addServer': '+ Add a server',
