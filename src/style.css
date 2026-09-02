@@ -161,8 +161,14 @@ x;
 
 .glass-panel {
   width: 360px;
-  min-height: 430px;
+  /* Hauteur FIXE (pas juste un minimum) : chaque écran a désormais son
+     propre scroll interne (voir .screen.active) plutôt que de pousser le
+     panneau entier plus haut — sinon on retombe dans le même problème de
+     saut vertical entre onglets qu'avant, juste avec un contenu plus riche. */
+  height: 430px;
   padding: 26px;
+  display: flex;
+  flex-direction: column;
   border-radius: 24px;
   background: rgba(255,255,255,0.08);
   backdrop-filter: blur(24px) saturate(160%);
@@ -179,6 +185,7 @@ x;
   justify-content: center;
   gap: 14px;
   margin-bottom: 20px;
+  flex-shrink: 0;
 }
 .nav-item {
   background: none;
@@ -195,7 +202,13 @@ x;
 }
 
 .screen { display: none; }
-.screen.active { display: block; }
+.screen.active {
+  display: block;
+  flex: 1;
+  min-height: 0; /* indispensable pour qu'un enfant flex accepte de scroller au lieu de déborder */
+  overflow-y: auto;
+  padding-right: 6px;
+}
 
 .panel-title {
   font-size: 12px;
@@ -363,15 +376,18 @@ select.field option {
 
 /* Scrollbar fine façon liquid glass au lieu du rendu Windows par défaut. */
 .modal::-webkit-scrollbar,
-.server-list::-webkit-scrollbar {
+.server-list::-webkit-scrollbar,
+.screen::-webkit-scrollbar {
   width: 8px;
 }
 .modal::-webkit-scrollbar-track,
-.server-list::-webkit-scrollbar-track {
+.server-list::-webkit-scrollbar-track,
+.screen::-webkit-scrollbar-track {
   background: transparent;
 }
 .modal::-webkit-scrollbar-thumb,
-.server-list::-webkit-scrollbar-thumb {
+.server-list::-webkit-scrollbar-thumb,
+.screen::-webkit-scrollbar-thumb {
   background: rgba(255,255,255,0.25);
   border-radius: 8px;
   /* Retrait en haut/bas pour ne pas toucher les coins arrondis du modal. */
@@ -380,7 +396,8 @@ select.field option {
   background-clip: padding-box;
 }
 .modal::-webkit-scrollbar-thumb:hover,
-.server-list::-webkit-scrollbar-thumb:hover {
+.server-list::-webkit-scrollbar-thumb:hover,
+.screen::-webkit-scrollbar-thumb:hover {
   background: rgba(255,255,255,0.4);
 }
 

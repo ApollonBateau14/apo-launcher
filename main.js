@@ -13,6 +13,7 @@ const { getCompatibleCatalog } = require('./src/lib/addons');
 const autoUpdate = require('./src/lib/autoUpdate');
 const msAuth = require('./src/lib/msAuth');
 const skins = require('./src/lib/skins');
+const { STREAMERS_EN, STREAMERS_FR } = require('./src/lib/skinCategories');
 
 // Métadonnées des serveurs : pas sensible, ça reste dans le code (public sur GitHub).
 // Complète/adapte cette liste avec tes vrais serveurs et leurs manifests GitHub.
@@ -269,6 +270,25 @@ ipcMain.handle('remove-friend-skin', (_e, username) => {
   const list = store.get('skinFriends', []);
   store.set('skinFriends', list.filter((n) => n.toLowerCase() !== username.toLowerCase()));
   return true;
+});
+
+// Galeries "Streamers" curées à la main (voir skinCategories.js) — mêmes
+// comptes à chaque appel, mais relookés à chaque fois (skin/pseudo à jour,
+// et ça filtre proprement un compte qui aurait disparu/été renommé).
+ipcMain.handle('get-streamer-skins', async () => {
+  const lookupAll = async (usernames) => {
+    const results = await Promise.all(usernames.map(async (name) => {
+      try {
+        const result = await skins.lookupSkinByUsername(name);
+        return result?.skinUrl ? result : null;
+      } catch {
+        return null;
+      }
+    }));
+    return results.filter(Boolean);
+  };
+  const [en, fr] = await Promise.all([lookupAll(STREAMERS_EN), lookupAll(STREAMERS_FR)]);
+  return { en, fr };
 });
 
 ipcMain.handle('set-ram', (_e, ramMb) => {

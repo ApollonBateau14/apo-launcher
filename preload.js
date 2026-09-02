@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('api', {
   getFriendSkins: () => ipcRenderer.invoke('get-friend-skins'),
   addFriendSkin: (username) => ipcRenderer.invoke('add-friend-skin', username),
   removeFriendSkin: (username) => ipcRenderer.invoke('remove-friend-skin', username),
+  getStreamerSkins: () => ipcRenderer.invoke('get-streamer-skins'),
   setRam: (ramMb) => ipcRenderer.invoke('set-ram', ramMb),
   setMusicVolume: (volumePercent) => ipcRenderer.invoke('set-music-volume', volumePercent),
   setLanguage: (lang) => ipcRenderer.invoke('set-language', lang),

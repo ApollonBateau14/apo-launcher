@@ -36,6 +36,8 @@ const TRANSLATIONS = {
     'skin.addFriendTitle': 'Ajouter un ami',
     'skin.addFriendPlaceholder': 'Pseudo Minecraft',
     'skin.noFriends': 'Aucun ami ajouté pour l’instant.',
+    'skin.streamersFr': 'Streamers FR',
+    'skin.streamersEn': 'Streamers EN',
 
     'play.serverLabel': 'Serveur',
     'play.addServer': '+ Ajouter un serveur',
@@ -142,6 +144,8 @@ const TRANSLATIONS = {
     'skin.addFriendTitle': 'Add a friend',
     'skin.addFriendPlaceholder': 'Minecraft username',
     'skin.noFriends': 'No friends added yet.',
+    'skin.streamersFr': 'FR streamers',
+    'skin.streamersEn': 'EN streamers',
 
     'play.serverLabel': 'Server',
     'play.addServer': '+ Add a server',

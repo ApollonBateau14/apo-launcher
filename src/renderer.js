@@ -46,6 +46,7 @@ function goToScreen(screenName) {
     statusRefreshInterval = setInterval(refreshServerStatus, STATUS_REFRESH_MS);
   } else if (screenName === 'skin') {
     loadFriendGallery();
+    loadStreamerGalleries();
   }
 }
 
@@ -559,50 +560,69 @@ document.getElementById('skin-apply-btn').addEventListener('click', async () => 
   statusEl.textContent = window.i18n.t(account ? 'skin.applied' : 'skin.appliedOfflineNote');
 });
 
-// --- Galerie d'amis (skins) — liste gérée à la main, voir main.js ---
-async function loadFriendGallery() {
-  const gallery = document.getElementById('skin-gallery');
-  gallery.innerHTML = '';
-  const friends = await window.api.getFriendSkins();
+// --- Galeries de skins (amis gérés à la main + streamers curés) ---
+// Rendu générique réutilisé par les 3 galeries : cliquer un avatar
+// prévisualise en 3D (même flux que la recherche) ; onRemove optionnel
+// affiche un petit "×" (seulement pour la galerie d'amis, pas les
+// streamers qui sont une liste fixe).
+function renderSkinGallery(containerEl, players, emptyKey, onRemove) {
+  containerEl.innerHTML = '';
 
-  if (!friends.length) {
+  if (!players.length) {
+    if (!emptyKey) return;
     const empty = document.createElement('p');
     empty.className = 'hint';
-    empty.textContent = window.i18n.t('skin.noFriends');
-    gallery.appendChild(empty);
+    empty.textContent = window.i18n.t(emptyKey);
+    containerEl.appendChild(empty);
     return;
   }
 
-  friends.forEach((friend) => {
+  players.forEach((player) => {
     const item = document.createElement('div');
     item.className = 'skin-gallery-item';
-    item.title = friend.name;
+    item.title = player.name;
 
     const img = document.createElement('img');
-    img.src = friend.skinUrl;
-    img.alt = friend.name;
+    img.src = player.skinUrl;
+    img.alt = player.name;
     item.appendChild(img);
 
-    const remove = document.createElement('div');
-    remove.className = 'skin-gallery-remove';
-    remove.textContent = '×';
-    remove.addEventListener('click', async (e) => {
-      e.stopPropagation(); // ne pas déclencher la sélection du skin en dessous
-      await window.api.removeFriendSkin(friend.name);
-      loadFriendGallery();
-    });
-    item.appendChild(remove);
+    if (onRemove) {
+      const remove = document.createElement('div');
+      remove.className = 'skin-gallery-remove';
+      remove.textContent = '×';
+      remove.addEventListener('click', (e) => {
+        e.stopPropagation(); // ne pas déclencher la sélection du skin en dessous
+        onRemove(player);
+      });
+      item.appendChild(remove);
+    }
 
     item.addEventListener('click', () => {
-      foundSkin = friend;
-      skinViewer.loadSkin(friend.skinUrl);
+      foundSkin = player;
+      skinViewer.loadSkin(player.skinUrl);
       document.getElementById('skin-apply-btn').hidden = false;
       document.getElementById('skin-status').textContent = '';
     });
 
-    gallery.appendChild(item);
+    containerEl.appendChild(item);
   });
 }
+
+async function loadFriendGallery() {
+  const friends = await window.api.getFriendSkins();
+  renderSkinGallery(document.getElementById('skin-gallery'), friends, 'skin.noFriends', async (friend) => {
+    await window.api.removeFriendSkin(friend.name);
+    loadFriendGallery();
+  });
+}
+
+async function loadStreamerGalleries() {
+  const { en, fr } = await window.api.getStreamerSkins();
+  renderSkinGallery(document.getElementById('skin-gallery-fr'), fr, null);
+  renderSkinGallery(document.getElementById('skin-gallery-en'), en, null);
+}
+loadStreamerGalleries();
 loadFriendGallery();
 
 document.getElementById('skin-add-friend-btn').addEventListener('click', () => {

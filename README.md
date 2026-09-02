@@ -24,13 +24,16 @@ npm start
   connexion Microsoft → Xbox Live → Minecraft, aucune appli à créer/enregistrer (client_id public standard des
   launchers alternatifs). Récupère le vrai pseudo/UUID automatiquement, reste connecté d'un lancement à l'autre
   (refresh token mis en cache), déconnexion possible depuis l'écran Connexion
-- Skin : recherche par pseudo Minecraft réel via l'API officielle Mojang (pas de scraping NameMC — pas d'API
-  publique là-bas), avec aperçu du personnage en 3D (`skinview3d`/Three.js, même style que le menu de
-  personnalisation du jeu — rotation auto, drag à la souris). Connecté avec Microsoft : applique vraiment le
-  skin trouvé sur le compte (visible par tout le monde en jeu). En offline : aperçu local uniquement dans
-  l'appli, **pas visible par les autres joueurs en jeu** (limitation du mode offline — un vrai skin partagé
-  nécessiterait d'héberger un serveur de session Minecraft alternatif que tous les amis pointent, pas fait
-  pour l'instant, voir "reste à faire")
+- Skin (onglet dédié) : recherche par pseudo Minecraft réel via l'API officielle Mojang (pas de scraping
+  NameMC/Planet Minecraft — le premier bloque explicitement Claude dans son `robots.txt`, le second n'a pas
+  d'API propre), avec aperçu du personnage en 3D (`skinview3d`/Three.js, même style que le menu de
+  personnalisation du jeu — face à l'écran par défaut, tournable à la souris gauche/droite uniquement).
+  Connecté avec Microsoft : applique vraiment le skin trouvé sur le compte (visible par tout le monde en jeu).
+  En offline : aperçu local uniquement dans l'appli, **pas visible par les autres joueurs en jeu** (limitation
+  du mode offline, voir "reste à faire"). Deux galeries en plus de la recherche :
+  - **Amis** : liste gérée à la main (bouton "+ Ajouter", pseudo vérifié avant sauvegarde)
+  - **Streamers FR/EN** : sélection curée à la main de ~10+10 vrais comptes de streamers/YouTubers connus
+    (`src/lib/skinCategories.js`), skin à jour à chaque affichage
 
 **Serveurs**
 - Multi-serveurs : chaque serveur a sa version MC, son loader, son `manifestUrl` de modpack, son icône
