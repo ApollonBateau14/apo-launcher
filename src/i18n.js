@@ -66,7 +66,8 @@ const TRANSLATIONS = {
 
     'server.editTitle': "Modifier l'IP",
     'server.deleteButton': 'Supprimer ce serveur',
-    'server.deleteConfirm': 'Supprimer {{name}} ? Cette action est définitive.',
+    'server.deleteWait': 'Patiente {{seconds}}s…',
+    'server.deleteConfirmBtn': 'Cliquer pour confirmer la suppression',
 
     'mute.mute': 'Couper le son',
     'mute.unmute': 'Remettre le son',
@@ -169,7 +170,8 @@ const TRANSLATIONS = {
 
     'server.editTitle': 'Edit IP',
     'server.deleteButton': 'Delete this server',
-    'server.deleteConfirm': 'Delete {{name}}? This action is permanent.',
+    'server.deleteWait': 'Wait {{seconds}}s…',
+    'server.deleteConfirmBtn': 'Click to confirm deletion',
 
     'mute.mute': 'Mute',
     'mute.unmute': 'Unmute',

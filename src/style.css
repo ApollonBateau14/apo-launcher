@@ -436,6 +436,14 @@ select.field option {
   background: rgba(220,60,60,0.2);
   color: #fff;
 }
+.modal-delete-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.modal-delete-btn:disabled:hover {
+  background: none;
+  color: rgba(255,140,140,0.85);
+}
 
 .server-status {
   display: flex;

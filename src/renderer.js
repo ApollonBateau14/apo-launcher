@@ -419,14 +419,38 @@ function openEditServerModal(server) {
   const versionInput = addModalField(window.i18n.t('field.mcVersion'), { value: server.mcVersion, placeholder: '1.21.1' });
   const iconInput = addModalField(window.i18n.t('field.icon'), { value: server.icon || '', placeholder: 'https://.../icone.png' });
 
+  // Pas de popup système (confirm()) — le bouton lui-même se transforme en
+  // décompte de 3s avant de devenir cliquable pour de vrai, façon "tiens le
+  // bouton enfoncé" mais sans dépendre d'un maintien de clic précis.
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'modal-delete-btn';
   deleteBtn.textContent = window.i18n.t('server.deleteButton');
+  const deleteErrorEl = document.createElement('p');
+  deleteErrorEl.className = 'hint';
+
+  let armed = false;
   deleteBtn.addEventListener('click', async () => {
-    if (!confirm(window.i18n.t('server.deleteConfirm', { name: server.name }))) return;
+    if (!armed) {
+      deleteBtn.disabled = true;
+      let remaining = 3;
+      deleteBtn.textContent = window.i18n.t('server.deleteWait', { seconds: remaining });
+      const interval = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(interval);
+          armed = true;
+          deleteBtn.disabled = false;
+          deleteBtn.textContent = window.i18n.t('server.deleteConfirmBtn');
+        } else {
+          deleteBtn.textContent = window.i18n.t('server.deleteWait', { seconds: remaining });
+        }
+      }, 1000);
+      return;
+    }
+
     const result = await window.api.removeServer(server.id);
     if (!result.success) {
-      alert(result.error);
+      deleteErrorEl.textContent = result.error;
       return;
     }
     closeModal();
@@ -434,6 +458,7 @@ function openEditServerModal(server) {
     refreshServerStatus();
   });
   modalFields.appendChild(deleteBtn);
+  modalFields.appendChild(deleteErrorEl);
 
   modalSaveBtn.onclick = async () => {
     const ip = ipInput.value.trim();
