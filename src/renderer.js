@@ -243,6 +243,24 @@ function addModalCheckbox(labelText, checked) {
   return input;
 }
 
+// Comme addModalCheckbox, mais en radio (un seul choix par `groupName`) —
+// pour des addons mutuellement exclusifs (ex: Fabulously Optimized vs
+// Fresh Animations, incompatibles ensemble).
+function addModalRadio(labelText, groupName, checked) {
+  const row = document.createElement('label');
+  row.className = 'checkbox-row';
+  const input = document.createElement('input');
+  input.type = 'radio';
+  input.name = `addon-group-${groupName}`;
+  input.checked = checked;
+  const span = document.createElement('span');
+  span.textContent = labelText;
+  row.appendChild(input);
+  row.appendChild(span);
+  modalFields.appendChild(row);
+  return input;
+}
+
 // Modal à cases à cocher pour les mods/shaders optionnels (kind: 'mods' ou
 // 'shaders') — activés côté joueur, en plus du modpack du serveur.
 async function openAddonModal(kind) {
@@ -258,12 +276,34 @@ async function openAddonModal(kind) {
   hint.textContent = window.i18n.t('addons.hint');
   modalFields.appendChild(hint);
 
-  const checkboxes = items.map((item) => ({ item, input: addModalCheckbox(item.name, enabled.has(item.id)) }));
+  // Les addons qui partagent un `group` (ex: Fabulously Optimized / Fresh
+  // Animations, incompatibles ensemble) s'affichent en radio — un seul
+  // choix possible — le reste en cases à cocher indépendantes.
+  const groups = new Map();
+  const standalone = [];
+  for (const item of items) {
+    if (item.group) {
+      if (!groups.has(item.group)) groups.set(item.group, []);
+      groups.get(item.group).push(item);
+    } else {
+      standalone.push(item);
+    }
+  }
+
+  const controls = [];
+  for (const groupItems of groups.values()) {
+    groupItems.forEach((item) => {
+      controls.push({ item, input: addModalRadio(item.name, item.group, enabled.has(item.id)) });
+    });
+  }
+  standalone.forEach((item) => {
+    controls.push({ item, input: addModalCheckbox(item.name, enabled.has(item.id)) });
+  });
 
   modalSaveBtn.onclick = async () => {
     const otherKind = kind === 'mods' ? catalog.shaders : catalog.mods;
     const keptIds = (settings.enabledAddons || []).filter((id) => otherKind.some((i) => i.id === id));
-    const newIds = checkboxes.filter((c) => c.input.checked).map((c) => c.item.id);
+    const newIds = controls.filter((c) => c.input.checked).map((c) => c.item.id);
     await window.api.setEnabledAddons([...keptIds, ...newIds]);
     closeModal();
   };

@@ -247,4 +247,4 @@ async function syncModpack(server, onProgress) {
   return { downloaded: toDownload.length };
 }
 
-module.exports = { checkModpackUpdate, syncModpack, getModsDir, getGameDir };
+module.exports = { checkModpackUpdate, syncModpack, getModsDir, getGameDir, resolveModrinthProject };

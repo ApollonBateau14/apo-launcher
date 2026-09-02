@@ -7,7 +7,7 @@ const { checkModpackUpdate } = require('./src/lib/modpack');
 const { launchGame, getGameDir } = require('./src/lib/launcher');
 const discordPresence = require('./src/lib/discordPresence');
 const { t } = require('./src/lib/backendI18n');
-const { getCatalog } = require('./src/lib/addons');
+const { getCompatibleCatalog } = require('./src/lib/addons');
 const autoUpdate = require('./src/lib/autoUpdate');
 
 // Métadonnées des serveurs : pas sensible, ça reste dans le code (public sur GitHub).
@@ -84,7 +84,9 @@ const store = new Store({
     ramMb: 4096,
     musicVolume: 10,
     language: 'en',
-    enabledAddons: ['fabulously-optimized', 'fresh-animations'],
+    // Fabulously Optimized et Fresh Animations sont mutuellement exclusifs
+    // (voir addons.js) — un seul activé par défaut.
+    enabledAddons: ['fabulously-optimized'],
     selectedServerId: SERVERS_META[0]?.id || '',
     removedServerIds: []
   }
@@ -165,7 +167,9 @@ ipcMain.handle('set-language', (_e, lang) => {
 });
 
 // ---- IPC: catalogue + sélection des mods/shaders optionnels ----
-ipcMain.handle('get-addon-catalog', () => getCatalog());
+// Filtré par compatibilité avec le serveur actuellement sélectionné : un
+// mod sans version dispo pour ce loader/cette version MC n'apparaît pas.
+ipcMain.handle('get-addon-catalog', () => getCompatibleCatalog(getSelectedServer()));
 
 ipcMain.handle('set-enabled-addons', (_e, ids) => {
   store.set('enabledAddons', ids);

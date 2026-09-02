@@ -12,12 +12,15 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
-const { getGameDir, syncModpack } = require('./modpack');
+const { getGameDir, syncModpack, resolveModrinthProject } = require('./modpack');
 const { downloadAndVerify } = require('./download');
 
+// Fabulously Optimized et Fresh Animations ne sont PAS compatibles
+// ensemble (constaté en jeu — comme le doublon Iris avant lui) : même
+// `group` = mutuellement exclusifs côté UI (radio, pas cases à cocher).
 const MOD_ADDONS = [
-  { id: 'fabulously-optimized', name: 'Fabulously Optimized', kind: 'modpack', defaultOn: true },
-  { id: 'fresh-animations', name: 'Fresh Animations', kind: 'resourcepack', defaultOn: true },
+  { id: 'fabulously-optimized', name: 'Fabulously Optimized', kind: 'modpack', defaultOn: true, group: 'main-pack' },
+  { id: 'fresh-animations', name: 'Fresh Animations', kind: 'resourcepack', defaultOn: false, group: 'main-pack' },
   { id: 'xaeros-minimap', name: "Minimap (Xaero's)", kind: 'mod', defaultOn: false }
 ];
 
@@ -40,6 +43,34 @@ function getCatalog() {
   return { mods: MOD_ADDONS, shaders: SHADER_ADDONS };
 }
 
+// Vrai s'il existe au moins une version de cet addon compatible avec le
+// loader/version MC du serveur — sans rien télécharger (juste la requête
+// de métadonnées, déjà filtrée côté API Modrinth par loaders/game_versions).
+async function isAddonCompatible(addon, server) {
+  try {
+    if (addon.kind === 'modpack') {
+      await resolveModrinthProject(addon.id, server);
+    } else {
+      await resolveBestFile(addon.id, server, addon.kind);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Catalogue filtré : un mod sans version compatible avec le serveur
+// actuellement choisi disparaît de la liste plutôt que de rester
+// sélectionnable pour planter (ou être silencieusement ignoré) au lancement.
+async function getCompatibleCatalog(server) {
+  const filter = async (list) => {
+    const flags = await Promise.all(list.map((addon) => isAddonCompatible(addon, server)));
+    return list.filter((_, i) => flags[i]);
+  };
+  const [mods, shaders] = await Promise.all([filter(MOD_ADDONS), filter(SHADER_ADDONS)]);
+  return { mods, shaders };
+}
+
 // Même principe que la résolution de modpack Modrinth (loaders +
 // game_versions filtrés côté API), mais retourne le fichier "primary" de
 // la version la plus récente, quel que soit le type de projet.
@@ -54,6 +85,11 @@ async function resolveBestFile(slug, server, kind) {
   const params = new URLSearchParams();
   if (kind === 'shader') {
     params.set('loaders', JSON.stringify(['iris']));
+  } else if (kind === 'resourcepack') {
+    // Un resourcepack ne dépend pas du mod-loader — Modrinth le tague
+    // "minecraft" (pas "fabric"/"forge"/...), filtrer par server.loader ne
+    // renvoyait donc jamais rien (constaté avec Fresh Animations, tagué
+    // "minecraft" seul, alors qu'il supporte bien MC 26.1.2).
   } else if (server.loader && server.loader !== 'vanilla') {
     params.set('loaders', JSON.stringify([server.loader]));
   }
@@ -139,4 +175,4 @@ async function installEnabledAddons(server, enabledIds, onProgress) {
   }
 }
 
-module.exports = { getCatalog, installEnabledAddons };
+module.exports = { getCatalog, getCompatibleCatalog, installEnabledAddons };
