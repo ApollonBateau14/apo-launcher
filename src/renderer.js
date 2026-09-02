@@ -76,18 +76,25 @@ async function loadSettings() {
 
   const ramSliderEl = document.getElementById('ram-slider');
   if (settings.systemRamMb) {
-    // Pas de sens à proposer plus que ce que la machine a physiquement —
-    // le max fixe de 16 Go dans le HTML n'a aucune idée de la vraie RAM.
-    ramSliderEl.max = Math.max(2048, Math.round(settings.systemRamMb / 512) * 512);
+    // Plafonné à 12 Go même sur une machine qui en a beaucoup plus : au-delà,
+    // ça n'aide plus Minecraft (le ramasse-miettes met plus de temps à
+    // parcourir un gros tas) — allouer toute la RAM dispo dégraderait plus
+    // qu'autre chose. Reste aussi borné par la RAM réelle si elle est plus
+    // petite que 12 Go, pas de sens à proposer plus que ce qui existe.
+    const MAX_REASONABLE_RAM_MB = 12288;
+    ramSliderEl.max = Math.min(MAX_REASONABLE_RAM_MB, Math.max(2048, Math.round(settings.systemRamMb / 512) * 512));
   }
   ramSliderEl.value = settings.ramMb;
   document.getElementById('ram-value').textContent = `${(settings.ramMb / 1024).toFixed(1)} Go`;
 
   if (settings.systemRamMb) {
-    // Règle simple : ~50% de la RAM totale, jamais moins de 2 Go ni plus
-    // que (total - 2 Go) pour laisser de quoi tourner l'OS à côté.
-    const raw = Math.round(settings.systemRamMb * 0.5 / 512) * 512;
-    const recommended = Math.min(Math.max(raw, 2048), Math.max(2048, settings.systemRamMb - 2048));
+    // 6 Go couvre large la plupart des modpacks avec optimisation
+    // (Fabulously Optimized + shaders inclus) — pas la peine de suggérer
+    // plus juste parce que la machine a beaucoup de RAM, ça n'accélère rien
+    // au-delà d'un certain point. Reste borné par (total - 2 Go) pour
+    // laisser de quoi tourner l'OS sur une machine plus modeste.
+    const IDEAL_RAM_MB = 6144;
+    const recommended = Math.max(2048, Math.min(IDEAL_RAM_MB, Math.round((settings.systemRamMb - 2048) / 512) * 512));
     const suggestionEl = document.getElementById('ram-suggestion');
     suggestionEl.textContent = window.i18n.t('settings.ramSuggested', { value: (recommended / 1024).toFixed(1) });
     suggestionEl.style.cursor = 'pointer';
