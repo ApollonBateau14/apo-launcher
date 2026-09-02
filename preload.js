@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld('api', {
 
   getSettings: () => ipcRenderer.invoke('get-settings'),
   setUsername: (username) => ipcRenderer.invoke('set-username', username),
+  msLogin: () => ipcRenderer.invoke('ms-login'),
+  msLogout: () => ipcRenderer.invoke('ms-logout'),
+  msSilentLogin: () => ipcRenderer.invoke('ms-silent-login'),
   setRam: (ramMb) => ipcRenderer.invoke('set-ram', ramMb),
   setMusicVolume: (volumePercent) => ipcRenderer.invoke('set-music-volume', volumePercent),
   setLanguage: (lang) => ipcRenderer.invoke('set-language', lang),

@@ -9,6 +9,7 @@ const discordPresence = require('./src/lib/discordPresence');
 const { t } = require('./src/lib/backendI18n');
 const { getCompatibleCatalog } = require('./src/lib/addons');
 const autoUpdate = require('./src/lib/autoUpdate');
+const msAuth = require('./src/lib/msAuth');
 
 // Métadonnées des serveurs : pas sensible, ça reste dans le code (public sur GitHub).
 // Complète/adapte cette liste avec tes vrais serveurs et leurs manifests GitHub.
@@ -149,6 +150,32 @@ ipcMain.handle('get-settings', () => ({ ...store.store, appVersion: app.getVersi
 ipcMain.handle('set-username', (_e, username) => {
   store.set('username', username);
   return true;
+});
+
+// ---- IPC: connexion Microsoft (vrai compte Minecraft) ----
+ipcMain.handle('ms-login', async () => {
+  try {
+    const account = await msAuth.loginInteractive();
+    store.set('msAccount', account);
+    return { success: true, account };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('ms-logout', () => {
+  msAuth.logout();
+  store.delete('msAccount');
+  return true;
+});
+
+// Tentative de reconnexion silencieuse au démarrage (refresh token
+// sauvegardé) — pas d'erreur si rien n'est sauvegardé, juste null.
+ipcMain.handle('ms-silent-login', async () => {
+  const account = await msAuth.loginSilent();
+  if (account) store.set('msAccount', account);
+  else store.delete('msAccount');
+  return account;
 });
 
 ipcMain.handle('set-ram', (_e, ramMb) => {
@@ -299,7 +326,8 @@ ipcMain.handle('launch-game', async () => {
     return { success: false, error: t(lang(), 'ipNotConfigured') };
   }
   const enabledAddons = store.get('enabledAddons', []);
-  return launchGame({ username, ramMb, server, lang: lang(), enabledAddons });
+  const useMicrosoft = !!store.get('msAccount', null);
+  return launchGame({ username, ramMb, server, lang: lang(), enabledAddons, useMicrosoft });
 });
 
 // ---- IPC: ouvrir le dossier de jeu du serveur sélectionné (dépannage) ----

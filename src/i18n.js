@@ -16,6 +16,10 @@ const TRANSLATIONS = {
     'connexion.pseudoPlaceholder': 'Ton pseudo Minecraft',
     'connexion.hint': "Attention à l'identifiant de la whitelist du serveur.",
     'connexion.validate': 'Valider',
+    'connexion.msLogin': 'Se connecter avec Microsoft',
+    'connexion.msLogout': 'Se déconnecter',
+    'connexion.msConnectedAs': 'Connecté avec Microsoft',
+    'connexion.msLoggingIn': 'Connexion en cours…',
 
     'play.serverLabel': 'Serveur',
     'play.addServer': '+ Ajouter un serveur',
@@ -94,6 +98,10 @@ const TRANSLATIONS = {
     'connexion.pseudoPlaceholder': 'Your Minecraft username',
     'connexion.hint': 'Careful with the exact whitelist name — it must match.',
     'connexion.validate': 'Confirm',
+    'connexion.msLogin': 'Sign in with Microsoft',
+    'connexion.msLogout': 'Sign out',
+    'connexion.msConnectedAs': 'Signed in with Microsoft',
+    'connexion.msLoggingIn': 'Signing in…',
 
     'play.serverLabel': 'Server',
     'play.addServer': '+ Add a server',

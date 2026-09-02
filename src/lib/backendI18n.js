@@ -18,6 +18,7 @@ const STRINGS = {
     javaError: (msg) => `Java : ${msg}`,
     loaderError: (loader, msg) => `Loader (${loader}) : ${msg}`,
     modpackError: (msg) => `Modpack : ${msg}`,
+    msAuthError: (msg) => `Compte Microsoft : ${msg}`,
     launchFailed: 'Le lancement a échoué (voir la console pour les détails).'
   },
   en: {
@@ -30,6 +31,7 @@ const STRINGS = {
     javaError: (msg) => `Java: ${msg}`,
     loaderError: (loader, msg) => `Loader (${loader}): ${msg}`,
     modpackError: (msg) => `Modpack: ${msg}`,
+    msAuthError: (msg) => `Microsoft account: ${msg}`,
     launchFailed: 'Launch failed (see the console for details).'
   }
 };

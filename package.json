@@ -19,6 +19,7 @@
     "electron-store": "^8.2.0",
     "electron-updater": "^6.3.0",
     "minecraft-launcher-core": "^3.18.1",
+    "msmc": "^5.0.5",
     "node-fetch": "^2.7.0"
   },
   "build": {

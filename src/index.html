@@ -39,11 +39,28 @@
 
       <!-- Écran Connexion -->
       <section class="screen active" id="screen-connexion">
-        <p class="panel-title" data-i18n="connexion.pseudoLabel">Pseudo</p>
-        <input class="field" type="text" id="username-input" data-i18n-placeholder="connexion.pseudoPlaceholder" placeholder="Ton pseudo Minecraft" maxlength="16" />
-        <p class="hint" data-i18n="connexion.hint">Attention à l'identifiant de la whitelist du serveur.</p>
-        <div class="btn-row">
-          <button class="btn primary" id="save-username-btn" data-i18n="connexion.validate">Valider</button>
+        <div id="ms-account-connected" hidden>
+          <p class="panel-title" data-i18n="connexion.msConnectedAs">Connecté avec Microsoft</p>
+          <p class="hint" id="ms-account-name"></p>
+          <div class="btn-row">
+            <button class="btn primary" id="ms-continue-btn" data-i18n="connexion.validate">Valider</button>
+          </div>
+          <div class="btn-row" style="margin-top:10px;">
+            <button class="btn" id="ms-logout-btn" data-i18n="connexion.msLogout">Se déconnecter</button>
+          </div>
+        </div>
+
+        <div id="ms-account-disconnected">
+          <p class="panel-title" data-i18n="connexion.pseudoLabel">Pseudo</p>
+          <input class="field" type="text" id="username-input" data-i18n-placeholder="connexion.pseudoPlaceholder" placeholder="Ton pseudo Minecraft" maxlength="16" />
+          <p class="hint" data-i18n="connexion.hint">Attention à l'identifiant de la whitelist du serveur.</p>
+          <div class="btn-row">
+            <button class="btn primary" id="save-username-btn" data-i18n="connexion.validate">Valider</button>
+          </div>
+          <div class="btn-row" style="margin-top:10px;">
+            <button class="btn" id="ms-login-btn" data-i18n="connexion.msLogin">Se connecter avec Microsoft</button>
+          </div>
+          <p class="hint" id="ms-login-status"></p>
         </div>
       </section>
 

@@ -50,6 +50,12 @@ function setActiveLangButton(lang) {
   });
 }
 
+function showMsAccount(account) {
+  document.getElementById('ms-account-connected').hidden = !account;
+  document.getElementById('ms-account-disconnected').hidden = !!account;
+  if (account) document.getElementById('ms-account-name').textContent = account.name;
+}
+
 async function loadSettings() {
   const settings = await window.api.getSettings();
 
@@ -69,8 +75,18 @@ async function loadSettings() {
 
   document.getElementById('app-version').textContent = settings.appVersion ? `v${settings.appVersion}` : '';
 
-  // Pseudo déjà défini lors d'un lancement précédent : direct sur Play.
-  if (settings.username) goToScreen('play');
+  showMsAccount(settings.msAccount);
+
+  // Déjà connecté (pseudo ou Microsoft) lors d'un lancement précédent : direct sur Play.
+  if (settings.username || settings.msAccount) goToScreen('play');
+
+  // Tentative de reconnexion silencieuse Microsoft (refresh token
+  // sauvegardé) — en tâche de fond, ne bloque pas l'affichage initial. Ne
+  // fait rien si aucun compte n'a jamais été connecté.
+  if (settings.msAccount) {
+    const account = await window.api.msSilentLogin();
+    showMsAccount(account);
+  }
 }
 loadSettings();
 
@@ -397,6 +413,28 @@ document.getElementById('save-username-btn').addEventListener('click', async () 
   if (!value) return;
   await window.api.setUsername(value);
   goToScreen('play');
+});
+
+document.getElementById('ms-continue-btn').addEventListener('click', () => goToScreen('play'));
+
+document.getElementById('ms-login-btn').addEventListener('click', async () => {
+  const statusEl = document.getElementById('ms-login-status');
+  const btn = document.getElementById('ms-login-btn');
+  btn.disabled = true;
+  statusEl.textContent = window.i18n.t('connexion.msLoggingIn');
+  const result = await window.api.msLogin();
+  btn.disabled = false;
+  if (result.success) {
+    statusEl.textContent = '';
+    showMsAccount(result.account);
+  } else {
+    statusEl.textContent = result.error;
+  }
+});
+
+document.getElementById('ms-logout-btn').addEventListener('click', async () => {
+  await window.api.msLogout();
+  showMsAccount(null);
 });
 
 // --- Écran Paramètres ---

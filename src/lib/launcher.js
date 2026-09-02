@@ -15,10 +15,13 @@ const { getLoaderLaunchOptions } = require('./loaderProfile');
 const { installEnabledAddons } = require('./addons');
 const { resolveServerAddress } = require('./serverPing');
 const discordPresence = require('./discordPresence');
+const msAuth = require('./msAuth');
 const { t } = require('./backendI18n');
 
-async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons = [] }) {
-  if (!username || username.trim().length === 0) {
+async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons = [], useMicrosoft = false }) {
+  // Pseudo requis seulement en offline — connecté avec Microsoft, le pseudo
+  // vient du vrai compte, pas d'un champ texte.
+  if (!useMicrosoft && (!username || username.trim().length === 0)) {
     return { success: false, error: t(lang, 'usernameMissing') };
   }
   if (!server) {
@@ -86,9 +89,21 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
   // derrière un proxy (Velocity/BungeeCord) qui publient un SRV.
   const { host: joinHost, port: joinPort } = await resolveServerAddress(server.ip, server.port);
 
+  // Auth Microsoft (vrai compte, session rafraîchie si besoin) si connecté,
+  // sinon offline classique : UUID généré à partir du pseudo tapé à la main.
+  let authorization;
+  if (useMicrosoft) {
+    try {
+      authorization = await msAuth.getLaunchAuth();
+    } catch (err) {
+      return { success: false, error: t(lang, 'msAuthError', err.message) };
+    }
+  } else {
+    authorization = Authenticator.getAuth(username);
+  }
+
   const opts = {
-    // Auth offline : génère un UUID à partir du pseudo, sans passer par Microsoft
-    authorization: Authenticator.getAuth(username),
+    authorization,
     root: gameDir,
     javaPath,
     ...loaderOpts,
