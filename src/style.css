@@ -176,7 +176,7 @@ x;
 .nav {
   display: flex;
   justify-content: center;
-  gap: 20px;
+  gap: 14px;
   margin-bottom: 20px;
 }
 .nav-item {

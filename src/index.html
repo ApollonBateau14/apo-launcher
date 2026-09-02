@@ -34,6 +34,7 @@
       <nav class="nav">
         <button class="nav-item active" data-screen="connexion" data-i18n="nav.connexion">Connexion</button>
         <button class="nav-item" data-screen="play" data-i18n="nav.play">Play</button>
+        <button class="nav-item" data-screen="skin" data-i18n="nav.skin">Skin</button>
         <button class="nav-item" data-screen="settings" data-i18n="nav.settings">Paramètres</button>
       </nav>
 
@@ -62,19 +63,20 @@
           </div>
           <p class="hint" id="ms-login-status"></p>
         </div>
+      </section>
 
-        <div id="skin-section" style="margin-top:22px;">
-          <p class="panel-title" data-i18n="skin.title">Skin</p>
-          <div class="skin-3d-row">
-            <canvas id="skin-3d-canvas" width="110" height="160"></canvas>
-            <div class="skin-3d-controls">
-              <input class="field" type="text" id="skin-search-input" data-i18n-placeholder="skin.searchPlaceholder" placeholder="Pseudo Minecraft (ex: Notch)" maxlength="16" />
-              <button class="btn" id="skin-search-btn" data-i18n="skin.search">Chercher</button>
-              <button class="btn primary" id="skin-apply-btn" data-i18n="skin.apply" hidden>Utiliser ce skin</button>
-            </div>
+      <!-- Écran Skin -->
+      <section class="screen" id="screen-skin">
+        <p class="panel-title" data-i18n="skin.title">Skin</p>
+        <div class="skin-3d-row">
+          <canvas id="skin-3d-canvas" width="110" height="160"></canvas>
+          <div class="skin-3d-controls">
+            <input class="field" type="text" id="skin-search-input" data-i18n-placeholder="skin.searchPlaceholder" placeholder="Pseudo Minecraft (ex: Notch)" maxlength="16" />
+            <button class="btn" id="skin-search-btn" data-i18n="skin.search">Chercher</button>
+            <button class="btn primary" id="skin-apply-btn" data-i18n="skin.apply" hidden>Utiliser ce skin</button>
           </div>
-          <p class="hint" id="skin-status"></p>
         </div>
+        <p class="hint" id="skin-status"></p>
       </section>
 
       <!-- Écran Play -->

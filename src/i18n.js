@@ -10,6 +10,7 @@ const TRANSLATIONS = {
   fr: {
     'nav.connexion': 'Connexion',
     'nav.play': 'Play',
+    'nav.skin': 'Skin',
     'nav.settings': 'Paramètres',
 
     'connexion.pseudoLabel': 'Pseudo',
@@ -110,6 +111,7 @@ const TRANSLATIONS = {
   en: {
     'nav.connexion': 'Login',
     'nav.play': 'Play',
+    'nav.skin': 'Skin',
     'nav.settings': 'Settings',
 
     'connexion.pseudoLabel': 'Username',
