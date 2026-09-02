@@ -44,9 +44,6 @@ function goToScreen(screenName) {
     loadServerList();
     refreshServerStatus();
     statusRefreshInterval = setInterval(refreshServerStatus, STATUS_REFRESH_MS);
-  } else if (screenName === 'skin') {
-    loadFriendGallery();
-    loadStreamerGalleries();
   }
 }
 
@@ -503,23 +500,38 @@ document.getElementById('ms-logout-btn').addEventListener('click', async () => {
 // personnalisation du jeu. Face à l'écran par défaut (pas de rotation
 // auto), tourné seulement à la souris — et uniquement gauche/droite (pas
 // d'inclinaison verticale ni de zoom molette, juste l'azimut).
-const skinViewer = new skinview3d.SkinViewer({
-  canvas: document.getElementById('skin-3d-canvas'),
-  width: 140,
-  height: 190,
-  pixelRatio: Math.max(window.devicePixelRatio || 1, 2) // plus net, canvas petit sinon flou
-});
-skinViewer.animation = new skinview3d.IdleAnimation();
-skinViewer.zoom = 0.75;
-skinViewer.controls.enableZoom = false;
-skinViewer.controls.enablePan = false;
-skinViewer.controls.minPolarAngle = Math.PI / 2;
-skinViewer.controls.maxPolarAngle = Math.PI / 2;
+//
+// Deux instances synchronisées : la grande dans l'éditeur plein écran
+// (interactive, sert aussi à l'aperçu recherche/galeries), et une petite
+// en permanence dans le coin bas-gauche (l'icône "joueur" elle-même) —
+// jamais interactive, juste un reflet en direct de l'autre.
+function makeSkinViewer(canvasId, width, height) {
+  const viewer = new skinview3d.SkinViewer({
+    canvas: document.getElementById(canvasId),
+    width,
+    height,
+    pixelRatio: Math.max(window.devicePixelRatio || 1, 2) // plus net, canvas petit sinon flou
+  });
+  viewer.animation = new skinview3d.IdleAnimation();
+  viewer.zoom = 0.75;
+  viewer.controls.enableZoom = false;
+  viewer.controls.enablePan = false;
+  viewer.controls.minPolarAngle = Math.PI / 2;
+  viewer.controls.maxPolarAngle = Math.PI / 2;
+  return viewer;
+}
+const skinViewer = makeSkinViewer('skin-3d-canvas', 320, 440);
+const skinViewerMini = makeSkinViewer('skin-mini-canvas', 40, 56);
+skinViewerMini.controls.enabled = false; // décoratif seulement, pas de drag sur l'icône
+
+function loadSkinEverywhere(url) {
+  skinViewer.loadSkin(url);
+  skinViewerMini.loadSkin(url);
+}
 
 async function loadCurrentSkin() {
   const { skinUrl } = await window.api.getCurrentSkin();
-  if (skinUrl) skinViewer.loadSkin(skinUrl);
-  else skinViewer.loadSkin(null);
+  loadSkinEverywhere(skinUrl || null);
 }
 loadCurrentSkin();
 
@@ -543,7 +555,7 @@ document.getElementById('skin-search-btn').addEventListener('click', async () =>
   } else {
     statusEl.textContent = '';
     foundSkin = result;
-    skinViewer.loadSkin(result.skinUrl); // aperçu 3D immédiat, avant même d'appliquer
+    loadSkinEverywhere(result.skinUrl); // aperçu 3D immédiat, avant même d'appliquer
     applyBtn.hidden = false;
   }
 });
@@ -560,23 +572,9 @@ document.getElementById('skin-apply-btn').addEventListener('click', async () => 
   statusEl.textContent = window.i18n.t(account ? 'skin.applied' : 'skin.appliedOfflineNote');
 });
 
-// --- Galeries de skins (amis gérés à la main + streamers curés) ---
-// Rendu générique réutilisé par les 3 galeries : cliquer un avatar
-// prévisualise en 3D (même flux que la recherche) ; onRemove optionnel
-// affiche un petit "×" (seulement pour la galerie d'amis, pas les
-// streamers qui sont une liste fixe).
-function renderSkinGallery(containerEl, players, emptyKey, onRemove) {
+// --- Galeries de streamers (curées à la main, voir skinCategories.js) ---
+function renderSkinGallery(containerEl, players) {
   containerEl.innerHTML = '';
-
-  if (!players.length) {
-    if (!emptyKey) return;
-    const empty = document.createElement('p');
-    empty.className = 'hint';
-    empty.textContent = window.i18n.t(emptyKey);
-    containerEl.appendChild(empty);
-    return;
-  }
-
   players.forEach((player) => {
     const item = document.createElement('div');
     item.className = 'skin-gallery-item';
@@ -587,20 +585,9 @@ function renderSkinGallery(containerEl, players, emptyKey, onRemove) {
     img.alt = player.name;
     item.appendChild(img);
 
-    if (onRemove) {
-      const remove = document.createElement('div');
-      remove.className = 'skin-gallery-remove';
-      remove.textContent = '×';
-      remove.addEventListener('click', (e) => {
-        e.stopPropagation(); // ne pas déclencher la sélection du skin en dessous
-        onRemove(player);
-      });
-      item.appendChild(remove);
-    }
-
     item.addEventListener('click', () => {
       foundSkin = player;
-      skinViewer.loadSkin(player.skinUrl);
+      loadSkinEverywhere(player.skinUrl);
       document.getElementById('skin-apply-btn').hidden = false;
       document.getElementById('skin-status').textContent = '';
     });
@@ -609,40 +596,21 @@ function renderSkinGallery(containerEl, players, emptyKey, onRemove) {
   });
 }
 
-async function loadFriendGallery() {
-  const friends = await window.api.getFriendSkins();
-  renderSkinGallery(document.getElementById('skin-gallery'), friends, 'skin.noFriends', async (friend) => {
-    await window.api.removeFriendSkin(friend.name);
-    loadFriendGallery();
-  });
-}
-
 async function loadStreamerGalleries() {
   const { en, fr } = await window.api.getStreamerSkins();
-  renderSkinGallery(document.getElementById('skin-gallery-fr'), fr, null);
-  renderSkinGallery(document.getElementById('skin-gallery-en'), en, null);
+  renderSkinGallery(document.getElementById('skin-gallery-fr'), fr);
+  renderSkinGallery(document.getElementById('skin-gallery-en'), en);
 }
 loadStreamerGalleries();
-loadFriendGallery();
 
-document.getElementById('skin-add-friend-btn').addEventListener('click', () => {
-  modalTitle.textContent = window.i18n.t('skin.addFriendTitle');
-  modalFields.innerHTML = '';
-  const input = addModalField(window.i18n.t('skin.addFriendPlaceholder'), { placeholder: 'Notch' });
-  const errorEl = document.createElement('p');
-  errorEl.className = 'hint';
-  modalFields.appendChild(errorEl);
-
-  modalSaveBtn.onclick = async () => {
-    const result = await window.api.addFriendSkin(input.value.trim());
-    if (!result.success) {
-      errorEl.textContent = result.error;
-      return;
-    }
-    closeModal();
-    loadFriendGallery();
-  };
-  modalOverlay.classList.add('active');
+// --- Éditeur de skin plein écran : ouverture/fermeture ---
+const skinEditorOverlay = document.getElementById('skin-editor-overlay');
+document.getElementById('skin-fab').addEventListener('click', () => {
+  skinEditorOverlay.classList.add('active');
+  loadStreamerGalleries(); // toujours à jour (skin actuel des streamers) à l'ouverture
+});
+document.getElementById('skin-editor-close').addEventListener('click', () => {
+  skinEditorOverlay.classList.remove('active');
 });
 
 // --- Écran Paramètres ---

@@ -374,21 +374,25 @@ select.field option {
   overflow-y: auto;
 }
 
-/* Scrollbar fine façon liquid glass au lieu du rendu Windows par défaut. */
+/* Scrollbar fine façon liquid glass (doré, même thème que le reste de
+   l'appli) au lieu du rendu Windows par défaut. */
 .modal::-webkit-scrollbar,
 .server-list::-webkit-scrollbar,
-.screen::-webkit-scrollbar {
+.screen::-webkit-scrollbar,
+.skin-editor-right::-webkit-scrollbar {
   width: 8px;
 }
 .modal::-webkit-scrollbar-track,
 .server-list::-webkit-scrollbar-track,
-.screen::-webkit-scrollbar-track {
+.screen::-webkit-scrollbar-track,
+.skin-editor-right::-webkit-scrollbar-track {
   background: transparent;
 }
 .modal::-webkit-scrollbar-thumb,
 .server-list::-webkit-scrollbar-thumb,
-.screen::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.25);
+.screen::-webkit-scrollbar-thumb,
+.skin-editor-right::-webkit-scrollbar-thumb {
+  background: rgba(230,180,80,0.4);
   border-radius: 8px;
   /* Retrait en haut/bas pour ne pas toucher les coins arrondis du modal. */
   border-top: 8px solid transparent;
@@ -397,8 +401,9 @@ select.field option {
 }
 .modal::-webkit-scrollbar-thumb:hover,
 .server-list::-webkit-scrollbar-thumb:hover,
-.screen::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.4);
+.screen::-webkit-scrollbar-thumb:hover,
+.skin-editor-right::-webkit-scrollbar-thumb:hover {
+  background: rgba(230,180,80,0.65);
 }
 
 .modal-field-row { margin-bottom: 12px; }
@@ -482,28 +487,84 @@ select.field option {
 }
 .checkbox-row span { font-size: 14px; }
 
-/* Aperçu skin : personnage 3D (skinview3d/Three.js) à gauche, comme dans
-   le menu de personnalisation du jeu — contrôles de recherche à droite. */
-.skin-3d-row { display: flex; align-items: flex-start; gap: 14px; }
+/* Icône "joueur" en bas à gauche — c'est en fait l'aperçu 3D du skin
+   actuel en permanence (skinview3d, deuxième instance synchronisée avec
+   celle de l'éditeur), pas une icône générique. Ouvre l'éditeur plein écran. */
+.skin-fab {
+  position: fixed;
+  bottom: 40px;
+  left: 14px;
+  width: 40px;
+  height: 56px;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+  overflow: hidden;
+  z-index: 6;
+  transition: border-color 0.2s ease, transform 0.15s ease;
+}
+.skin-fab:hover { border-color: rgba(230,180,80,0.8); transform: translateY(-2px); }
+.skin-fab canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+
+/* Éditeur de skin plein écran — séparé de la nav/glass-panel habituelle,
+   recouvre toute la fenêtre sous la titlebar. Aperçu 3D en grand à
+   gauche, recherche + galeries à droite. */
+.skin-editor-overlay {
+  display: none;
+  position: fixed;
+  top: 28px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10,8,20,0.6);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  z-index: 40;
+  padding: 36px;
+  gap: 36px;
+  align-items: stretch;
+}
+.skin-editor-overlay.active { display: flex; }
+.skin-editor-close {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.skin-editor-close:hover { background: rgba(220,60,60,0.35); }
+.skin-editor-left {
+  flex: 0 0 34%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 #skin-3d-canvas {
-  border-radius: 12px;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 16px;
   background: rgba(0,0,0,0.2);
-  flex-shrink: 0;
   cursor: grab;
 }
 #skin-3d-canvas:active { cursor: grabbing; }
-.skin-3d-controls { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-
-/* Galerie des skins des amis (liste gérée à la main — pas d'API fiable
-   pour "qui est en ligne", voir main.js:get-friend-skins) */
-.skin-friends-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 16px;
+.skin-editor-right {
+  flex: 1;
+  max-width: 480px;
+  overflow-y: auto;
+  padding-right: 8px;
 }
-.skin-friends-header .panel-title { margin-bottom: 0; }
-.skin-friends-header .btn { flex: none; padding: 6px 12px; font-size: 12px; }
+.skin-3d-controls { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+
 .skin-gallery {
   display: flex;
   gap: 8px;
@@ -511,6 +572,13 @@ select.field option {
   padding: 6px 2px;
   min-height: 48px;
 }
+.skin-gallery::-webkit-scrollbar { height: 6px; }
+.skin-gallery::-webkit-scrollbar-track { background: transparent; }
+.skin-gallery::-webkit-scrollbar-thumb {
+  background: rgba(230,180,80,0.4);
+  border-radius: 6px;
+}
+.skin-gallery::-webkit-scrollbar-thumb:hover { background: rgba(230,180,80,0.65); }
 .skin-gallery-item {
   position: relative;
   width: 40px;
@@ -535,21 +603,6 @@ select.field option {
   image-rendering: pixelated;
   pointer-events: none;
 }
-.skin-gallery-remove {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: rgba(0,0,0,0.75);
-  color: #fff;
-  font-size: 10px;
-  line-height: 16px;
-  text-align: center;
-  cursor: pointer;
-}
-.skin-gallery-remove:hover { background: rgba(200,60,60,0.9); }
 
 /* Ticker actualités Minecraft — remplit le vide sous le formulaire de
    connexion, défile en boucle infinie (contenu dupliqué x2, translateY à
