@@ -56,24 +56,41 @@ function buildServersList() {
   const ips = loadServerIps();
   const persisted = store.get('servers', []);
   const persistedById = Object.fromEntries(persisted.map((s) => [s.id, s]));
-  const codeIds = new Set(SERVERS_META.map((s) => s.id));
+  const metaById = Object.fromEntries(SERVERS_META.map((s) => [s.id, s]));
   const removedIds = new Set(store.get('removedServerIds', []));
 
-  const codeServers = SERVERS_META.filter((meta) => !removedIds.has(meta.id)).map((meta) => {
+  const fromMeta = (meta) => {
     const prev = persistedById[meta.id];
     return {
       ...meta,
+      name: prev?.name || meta.name,
       ip: prev?.ip || ips[meta.id]?.ip || '',
       port: prev?.port || ips[meta.id]?.port || 25565,
       loader: prev?.loader || meta.loader,
       mcVersion: prev?.mcVersion || meta.mcVersion,
       icon: prev?.icon || meta.icon
     };
+  };
+
+  // Ordre : celui déjà persisté (respecte un réordonnancement manuel fait
+  // dans l'appli) pour tout ce qui existe encore ; un nouveau serveur
+  // ajouté côté code (jamais vu par ce joueur) est ajouté à la fin, dans
+  // l'ordre du code — sans ça, l'ordre repartait de zéro à chaque lancement.
+  const seen = new Set();
+  const ordered = [];
+
+  persisted.forEach((entry) => {
+    if (removedIds.has(entry.id)) return;
+    ordered.push(metaById[entry.id] ? fromMeta(metaById[entry.id]) : entry);
+    seen.add(entry.id);
   });
 
-  const customServers = persisted.filter((s) => !codeIds.has(s.id));
+  SERVERS_META.forEach((meta) => {
+    if (seen.has(meta.id) || removedIds.has(meta.id)) return;
+    ordered.push(fromMeta(meta));
+  });
 
-  return [...codeServers, ...customServers];
+  return ordered;
 }
 
 const DIACRITICS_REGEX = new RegExp('[' + String.fromCharCode(0x0300) + '-' + String.fromCharCode(0x036f) + ']', 'g');
@@ -283,16 +300,29 @@ ipcMain.handle('set-selected-server', (_e, serverId) => {
 });
 
 // ---- IPC: modifier un serveur (bouton ⚙ dans la liste) ----
-ipcMain.handle('update-server', (_e, { serverId, ip, port, loader, mcVersion, icon }) => {
+ipcMain.handle('update-server', (_e, { serverId, name, ip, port, loader, mcVersion, icon }) => {
   const servers = store.get('servers', []);
   const server = servers.find((s) => s.id === serverId);
   if (!server) return false;
+  if (name && name.trim()) server.name = name.trim();
   server.ip = ip;
   server.port = port;
   if (loader) server.loader = loader;
   if (mcVersion) server.mcVersion = mcVersion;
   if (icon !== undefined) server.icon = icon;
   store.set('servers', servers);
+  return true;
+});
+
+// ---- IPC: réordonner les serveurs (glisser-déposer dans la liste) ----
+ipcMain.handle('reorder-servers', (_e, orderedIds) => {
+  const servers = store.get('servers', []);
+  const byId = Object.fromEntries(servers.map((s) => [s.id, s]));
+  const reordered = orderedIds.map((id) => byId[id]).filter(Boolean);
+  // Garde-fou : un id qui manquerait à l'appel (ne devrait pas arriver en
+  // usage normal) ne fait pas disparaître le serveur, juste le renvoie en fin.
+  const missing = servers.filter((s) => !orderedIds.includes(s.id));
+  store.set('servers', [...reordered, ...missing]);
   return true;
 });
 

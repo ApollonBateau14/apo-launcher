@@ -174,6 +174,28 @@ async function loadServerList() {
   servers.forEach((server) => {
     const card = document.createElement('div');
     card.className = 'server-card' + (server.id === settings.selectedServerId ? ' selected' : '');
+    card.draggable = true;
+    card.dataset.serverId = server.id;
+
+    // Glisser-déposer pour réordonner : on déplace la carte dans le DOM en
+    // direct pendant le survol (retour visuel immédiat), puis on persiste
+    // l'ordre final une fois relâché.
+    card.addEventListener('dragstart', () => {
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', async () => {
+      card.classList.remove('dragging');
+      const orderedIds = Array.from(listEl.children).map((c) => c.dataset.serverId);
+      await window.api.reorderServers(orderedIds);
+    });
+    card.addEventListener('dragover', (e) => {
+      e.preventDefault(); // requis pour autoriser le drop
+      const dragging = listEl.querySelector('.dragging');
+      if (!dragging || dragging === card) return;
+      const rect = card.getBoundingClientRect();
+      const before = e.clientY - rect.top < rect.height / 2;
+      listEl.insertBefore(dragging, before ? card : card.nextSibling);
+    });
 
     const iconEl = createServerIconEl(server);
     card.appendChild(iconEl);
@@ -390,6 +412,7 @@ document.getElementById('shaders-btn').addEventListener('click', () => openAddon
 function openEditServerModal(server) {
   modalTitle.textContent = window.i18n.t('modal.editTitle', { name: server.name });
   modalFields.innerHTML = '';
+  const nameInput = addModalField(window.i18n.t('field.name'), { value: server.name, placeholder: 'Mon serveur' });
   const ipInput = addModalField(window.i18n.t('field.ip'), { value: server.ip, placeholder: 'play.exemple.fr' });
   const portInput = addModalField(window.i18n.t('field.port'), { type: 'number', value: server.port || 25565 });
   const loaderSelect = addModalSelect(window.i18n.t('field.loader'), ['vanilla', 'fabric', 'forge', 'neoforge'], server.loader);
@@ -417,6 +440,7 @@ function openEditServerModal(server) {
     if (!ip) return;
     const port = Number(portInput.value) || 25565;
     await window.api.updateServer(server.id, {
+      name: nameInput.value.trim(),
       ip,
       port,
       loader: loaderSelect.value,

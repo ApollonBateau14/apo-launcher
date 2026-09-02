@@ -54,6 +54,7 @@ const TRANSLATIONS = {
     'modal.cancel': 'Annuler',
     'modal.save': 'Enregistrer',
 
+    'field.name': 'Nom',
     'field.ip': 'Adresse IP',
     'field.port': 'Port',
     'field.loader': 'Loader',
@@ -156,6 +157,7 @@ const TRANSLATIONS = {
     'modal.cancel': 'Cancel',
     'modal.save': 'Save',
 
+    'field.name': 'Name',
     'field.ip': 'IP address',
     'field.port': 'Port',
     'field.loader': 'Loader',

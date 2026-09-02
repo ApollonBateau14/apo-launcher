@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('api', {
   getServers: () => ipcRenderer.invoke('get-servers'),
   setSelectedServer: (serverId) => ipcRenderer.invoke('set-selected-server', serverId),
   updateServer: (serverId, data) => ipcRenderer.invoke('update-server', { serverId, ...data }),
+  reorderServers: (orderedIds) => ipcRenderer.invoke('reorder-servers', orderedIds),
   addServer: (serverData) => ipcRenderer.invoke('add-server', serverData),
   removeServer: (serverId) => ipcRenderer.invoke('remove-server', serverId),
 
