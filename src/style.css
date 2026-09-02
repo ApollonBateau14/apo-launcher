@@ -79,8 +79,7 @@ html {
    traitement liquid glass que .glass-panel : flou + reflet intérieur. */
 .titlebar {
   -webkit-app-region: drag;
-  height: 40p
-x;
+  height: 28px;
   display: flex;
   align-items: center;
   padding: 8px 14px;
@@ -515,10 +514,16 @@ select.field option {
 .skin-editor-overlay {
   display: none;
   position: fixed;
-  top: 28px;
+  top: 28px; /* même hauteur que .titlebar, juste en-dessous */
   left: 0;
   right: 0;
   bottom: 0;
+  /* Coins bas arrondis pour matcher html (16px) — les coins hauts n'ont
+     pas besoin de l'être, ils touchent la barre de titre qui a déjà les
+     siens. Sans ça, le clip de html (overflow:hidden) coupe les coins à
+     vif au lieu d'un arrondi net, propre. */
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
   background: rgba(10,8,20,0.6);
   backdrop-filter: blur(28px) saturate(160%);
   -webkit-backdrop-filter: blur(28px) saturate(160%);
