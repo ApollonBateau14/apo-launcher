@@ -1,6 +1,6 @@
 {
   "name": "apo-launcher",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Launcher custom multi-serveurs pour jouer avec les potes",
   "main": "main.js",
   "scripts": {

@@ -13,6 +13,12 @@ contextBridge.exposeInMainWorld('api', {
   setEnabledAddons: (ids) => ipcRenderer.invoke('set-enabled-addons', ids),
   openGameFolder: () => ipcRenderer.invoke('open-game-folder'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  onUpdateStatus: (callback) => {
+    ipcRenderer.removeAllListeners('update-status');
+    ipcRenderer.on('update-status', (_e, status) => callback(status));
+  },
 
   getServers: () => ipcRenderer.invoke('get-servers'),
   setSelectedServer: (serverId) => ipcRenderer.invoke('set-selected-server', serverId),

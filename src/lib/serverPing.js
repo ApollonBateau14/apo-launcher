@@ -3,6 +3,29 @@
 // Doc du protocole : wiki.vg/Server_List_Ping
 
 const net = require('net');
+const dns = require('dns').promises;
+
+/**
+ * Le client Minecraft officiel résout un enregistrement DNS SRV
+ * (_minecraft._tcp.<host>) quand on rentre juste un nom de domaine, pour
+ * trouver le vrai host:port du serveur (souvent différent du port par
+ * défaut 25565, ex: derrière un proxy Velocity/BungeeCord). Sans ça, on
+ * tape sur le mauvais port et le serveur paraît injoignable alors qu'il
+ * tourne bien. Ignoré silencieusement si pas de SRV (IP littérale, ou
+ * domaine sans SRV configuré) : on garde alors host/port tels quels.
+ */
+async function resolveServerAddress(host, port) {
+  try {
+    const records = await dns.resolveSrv(`_minecraft._tcp.${host}`);
+    if (records && records.length > 0) {
+      records.sort((a, b) => a.priority - b.priority || b.weight - a.weight);
+      return { host: records[0].name, port: records[0].port };
+    }
+  } catch {
+    // pas de SRV pour ce host (ou IP littérale) : on garde tel quel
+  }
+  return { host, port };
+}
 
 function writeVarInt(value) {
   const bytes = [];
@@ -50,7 +73,12 @@ function buildStatusRequestPacket() {
  * Ping un serveur Minecraft et retourne son statut.
  * @returns {Promise<{online: boolean, motd?: string, playersOnline?: number, playersMax?: number, ping?: number, sample?: Array}>}
  */
-function pingServer(host, port, timeoutMs = 4000) {
+async function pingServer(host, port, timeoutMs = 4000) {
+  const resolved = await resolveServerAddress(host, port);
+  return pingResolved(resolved.host, resolved.port, timeoutMs);
+}
+
+function pingResolved(host, port, timeoutMs) {
   return new Promise((resolve, reject) => {
     const socket = new net.Socket();
     let buffer = Buffer.alloc(0);
@@ -118,4 +146,4 @@ function pingServer(host, port, timeoutMs = 4000) {
   });
 }
 
-module.exports = { pingServer };
+module.exports = { pingServer, resolveServerAddress };

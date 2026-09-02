@@ -13,6 +13,7 @@ const { getGameDir, syncModpack } = require('./modpack');
 const { ensureJava } = require('./javaRuntime');
 const { getLoaderLaunchOptions } = require('./loaderProfile');
 const { installEnabledAddons } = require('./addons');
+const { resolveServerAddress } = require('./serverPing');
 const discordPresence = require('./discordPresence');
 const { t } = require('./backendI18n');
 
@@ -78,6 +79,13 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
     }
   }
 
+  // Le client Minecraft officiel résout le DNS SRV (_minecraft._tcp.<host>)
+  // quand on rejoint via un simple nom de domaine — pas quand un port est
+  // fourni explicitement, or quickPlay force toujours host:port. Sans cette
+  // résolution manuelle, on rejoindrait le mauvais port sur les serveurs
+  // derrière un proxy (Velocity/BungeeCord) qui publient un SRV.
+  const { host: joinHost, port: joinPort } = await resolveServerAddress(server.ip, server.port);
+
   const opts = {
     // Auth offline : génère un UUID à partir du pseudo, sans passer par Microsoft
     authorization: Authenticator.getAuth(username),
@@ -89,7 +97,7 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
     // le client télécharge, charge, puis rejoint directement le monde.
     quickPlay: {
       type: 'multiplayer',
-      identifier: `${server.ip}:${server.port}`
+      identifier: `${joinHost}:${joinPort}`
     },
     memory: {
       max: `${ramMb}M`,

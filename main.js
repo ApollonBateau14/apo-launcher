@@ -1,7 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const fetch = require('node-fetch');
 const Store = require('electron-store');
 const { pingServer } = require('./src/lib/serverPing');
 const { checkModpackUpdate } = require('./src/lib/modpack');
@@ -9,11 +8,7 @@ const { launchGame, getGameDir } = require('./src/lib/launcher');
 const discordPresence = require('./src/lib/discordPresence');
 const { t } = require('./src/lib/backendI18n');
 const { getCatalog } = require('./src/lib/addons');
-
-// Repo GitHub utilisé pour la vérification manuelle des mises à jour
-// (bouton "Vérifier les mises à jour"), distinct de l'auto-update
-// electron-updater (pas encore branché — voir README).
-const GITHUB_REPO = 'ApollonBateau14/apo-launcher';
+const autoUpdate = require('./src/lib/autoUpdate');
 
 // Métadonnées des serveurs : pas sensible, ça reste dans le code (public sur GitHub).
 // Complète/adapte cette liste avec tes vrais serveurs et leurs manifests GitHub.
@@ -308,27 +303,11 @@ ipcMain.handle('open-game-folder', () => {
   return true;
 });
 
-// ---- IPC: vérification manuelle des mises à jour via les Releases GitHub ----
-// (Distinct de l'auto-update electron-updater, pas encore branché.)
-ipcMain.handle('check-for-updates', async () => {
-  try {
-    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
-    if (res.status === 404) {
-      return { error: t(lang(), 'noGithubRelease') };
-    }
-    if (!res.ok) {
-      return { error: t(lang(), 'githubError', res.status) };
-    }
-    const data = await res.json();
-    const latest = (data.tag_name || '').replace(/^v/, '');
-    const current = app.getVersion();
-    return {
-      current,
-      latest,
-      upToDate: latest === current,
-      url: data.html_url
-    };
-  } catch (err) {
-    return { error: err.message };
-  }
-});
+// ---- IPC: auto-update réel (electron-updater, via GitHub Releases) ----
+// check déclenche les events 'checking-for-update'/'update-available'/...
+// (voir src/lib/autoUpdate.js) renvoyés au renderer via 'update-status'.
+// En dev (app non empaquetée), retombe sur une simple lecture de la
+// dernière Release GitHub (pas de vrai téléchargement possible en dev).
+ipcMain.handle('check-for-updates', () => autoUpdate.checkForUpdates(lang()));
+ipcMain.handle('download-update', () => autoUpdate.downloadUpdate());
+ipcMain.handle('install-update', () => autoUpdate.installUpdate());

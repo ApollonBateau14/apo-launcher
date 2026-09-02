@@ -374,16 +374,61 @@ document.getElementById('open-folder-btn').addEventListener('click', () => {
   window.api.openGameFolder();
 });
 
+// Auto-update réel (electron-updater côté main, voir src/lib/autoUpdate.js).
+// En build packagé, la progression complète (checking → available → downloading
+// → downloaded) arrive via l'event 'update-status' géré plus bas ; le retour
+// direct de checkForUpdates() ne sert alors qu'à savoir si ça a bien démarré.
+// En dev (app pas packagée), pas d'event : le retour direct contient déjà
+// tout (simple comparaison de version via l'API GitHub, pas de vrai téléchargement).
+const updateStatusEl = document.getElementById('update-status');
+const updateActionBtn = document.getElementById('update-action-btn');
+let updateActionMode = null; // 'download' | 'install' | null
+
+updateActionBtn.addEventListener('click', async () => {
+  if (updateActionMode === 'download') {
+    updateActionBtn.hidden = true;
+    await window.api.downloadUpdate();
+  } else if (updateActionMode === 'install') {
+    window.api.installUpdate();
+  }
+});
+
 document.getElementById('check-updates-btn').addEventListener('click', async () => {
-  const statusEl = document.getElementById('update-status');
-  statusEl.textContent = window.i18n.t('update.checking');
+  updateActionBtn.hidden = true;
+  updateStatusEl.textContent = window.i18n.t('update.checking');
   const result = await window.api.checkForUpdates();
   if (result.error) {
-    statusEl.textContent = result.error;
-  } else if (result.upToDate) {
-    statusEl.textContent = window.i18n.t('update.upToDate', { version: result.current });
-  } else {
-    statusEl.textContent = window.i18n.t('update.newVersion', { latest: result.latest, current: result.current });
+    updateStatusEl.textContent = result.error;
+  } else if (result.dev) {
+    updateStatusEl.textContent = result.upToDate
+      ? window.i18n.t('update.upToDate', { version: result.current })
+      : window.i18n.t('update.newVersion', { latest: result.latest, current: result.current });
+  }
+  // sinon (build packagé) : les events 'update-status' prennent le relais.
+});
+
+window.api.onUpdateStatus((status) => {
+  if (status.state === 'checking') {
+    updateStatusEl.textContent = window.i18n.t('update.checking');
+    updateActionBtn.hidden = true;
+  } else if (status.state === 'available') {
+    updateStatusEl.textContent = window.i18n.t('update.available', { version: status.version });
+    updateActionBtn.textContent = window.i18n.t('update.downloadBtn');
+    updateActionMode = 'download';
+    updateActionBtn.hidden = false;
+  } else if (status.state === 'not-available') {
+    updateStatusEl.textContent = window.i18n.t('update.notAvailable', { version: status.current });
+    updateActionBtn.hidden = true;
+  } else if (status.state === 'downloading') {
+    updateStatusEl.textContent = window.i18n.t('update.downloading', { percent: status.percent });
+  } else if (status.state === 'downloaded') {
+    updateStatusEl.textContent = window.i18n.t('update.downloaded');
+    updateActionBtn.textContent = window.i18n.t('update.installBtn');
+    updateActionMode = 'install';
+    updateActionBtn.hidden = false;
+  } else if (status.state === 'error') {
+    updateStatusEl.textContent = window.i18n.t('update.error', { message: status.message });
+    updateActionBtn.hidden = true;
   }
 });
 
