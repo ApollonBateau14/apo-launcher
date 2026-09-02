@@ -13,6 +13,7 @@ const path = require('path');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
 const { getGameDir, syncModpack } = require('./modpack');
+const { downloadAndVerify } = require('./download');
 
 const MOD_ADDONS = [
   { id: 'fabulously-optimized', name: 'Fabulously Optimized', kind: 'modpack', defaultOn: true },
@@ -73,26 +74,6 @@ function fileSha1(filePath) {
   return crypto.createHash('sha1').update(fs.readFileSync(filePath)).digest('hex');
 }
 
-async function downloadFile(url, dest, onProgress) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Échec téléchargement (HTTP ${res.status})`);
-  fs.mkdirSync(path.dirname(dest), { recursive: true });
-  const fileStream = fs.createWriteStream(dest);
-  const total = Number(res.headers.get('content-length')) || 0;
-
-  return new Promise((resolve, reject) => {
-    let downloaded = 0;
-    res.body.on('data', (chunk) => {
-      downloaded += chunk.length;
-      if (onProgress) onProgress(downloaded, total);
-    });
-    res.body.pipe(fileStream);
-    res.body.on('error', reject);
-    fileStream.on('error', reject);
-    fileStream.on('finish', resolve);
-  });
-}
-
 async function installSingleFileAddon(addon, server, gameDir, onProgress) {
   const file = await resolveBestFile(addon.id, server, addon.kind);
   const folder = DEST_FOLDER_BY_KIND[addon.kind] || 'mods';
@@ -100,9 +81,12 @@ async function installSingleFileAddon(addon, server, gameDir, onProgress) {
 
   const upToDate = fs.existsSync(dest) && (!file.hashes?.sha1 || fileSha1(dest) === file.hashes.sha1);
   if (!upToDate) {
-    await downloadFile(file.url, dest, (downloaded, total) => {
-      if (onProgress) onProgress({ file: `${folder}/${file.filename}`, downloaded, total });
-    });
+    await downloadAndVerify(
+      file.url,
+      dest,
+      { hash: file.hashes?.sha1, algo: 'sha1', size: file.size },
+      (downloaded, total) => { if (onProgress) onProgress({ file: `${folder}/${file.filename}`, downloaded, total }); }
+    );
   }
 }
 

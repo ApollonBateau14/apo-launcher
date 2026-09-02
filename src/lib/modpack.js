@@ -26,6 +26,7 @@ const crypto = require('crypto');
 const fetch = require('node-fetch');
 const AdmZip = require('adm-zip');
 const { app } = require('electron');
+const { downloadAndVerify } = require('./download');
 
 function getGameDir(serverId) {
   return path.join(app.getPath('userData'), 'game', serverId);
@@ -217,23 +218,17 @@ async function checkModpackUpdate(server) {
 }
 
 async function downloadModpackFile(entry, gameDir, onProgress) {
-  const res = await fetch(entry.url);
-  if (!res.ok) throw new Error(`Échec téléchargement ${entry.file}`);
   const dest = path.join(gameDir, entry.file);
-  fs.mkdirSync(path.dirname(dest), { recursive: true });
-  const fileStream = fs.createWriteStream(dest);
-
-  return new Promise((resolve, reject) => {
-    let downloaded = 0;
-    res.body.on('data', (chunk) => {
-      downloaded += chunk.length;
-      if (onProgress) onProgress(entry.file, downloaded, entry.size);
-    });
-    res.body.pipe(fileStream);
-    res.body.on('error', reject);
-    fileStream.on('error', reject);
-    fileStream.on('finish', resolve);
-  });
+  try {
+    await downloadAndVerify(
+      entry.url,
+      dest,
+      { hash: entry.hash, algo: entry.algo, size: entry.size },
+      (downloaded, total) => { if (onProgress) onProgress(entry.file, downloaded, total); }
+    );
+  } catch (err) {
+    throw new Error(`Échec téléchargement ${entry.file} : ${err.message}`);
+  }
 }
 
 // Vérifie et télécharge tout ce qui manque/a changé pour ce serveur, puis
