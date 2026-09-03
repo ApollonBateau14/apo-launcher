@@ -44,6 +44,8 @@ function goToScreen(screenName) {
     loadServerList();
     refreshServerStatus();
     statusRefreshInterval = setInterval(refreshServerStatus, STATUS_REFRESH_MS);
+  } else if (screenName === 'addons') {
+    renderAddonsScreen();
   }
 }
 
@@ -171,6 +173,12 @@ function createServerIconEl(server) {
   return fallback;
 }
 
+function loaderLabel(loader) {
+  if (!loader || loader === 'vanilla') return 'Vanilla';
+  if (loader === 'neoforge') return 'NeoForge';
+  return loader.charAt(0).toUpperCase() + loader.slice(1); // fabric -> Fabric, forge -> Forge
+}
+
 // --- Écran Play : liste des serveurs ---
 async function loadServerList() {
   const servers = await window.api.getServers();
@@ -220,14 +228,41 @@ async function loadServerList() {
 
     const main = document.createElement('div');
     main.className = 'server-card-main';
+    const nameRow = document.createElement('div');
+    nameRow.className = 'server-name-row';
     const nameEl = document.createElement('span');
     nameEl.className = 'server-name';
     nameEl.textContent = server.name;
+    nameRow.appendChild(nameEl);
+    // Description auto-générée (loader + version) plutôt que saisie à la
+    // main — sinon un serveur ajouté sans y penser reste vide (ex: OneBlock).
+    // Suffixe "— Optimiser" si Fabulously Optimized est compatible, vérifié
+    // en tâche de fond (appel API Modrinth) comme le favicon/badge crack.
     const descEl = document.createElement('span');
     descEl.className = 'server-desc';
-    descEl.textContent = server.description || '';
-    main.appendChild(nameEl);
+    descEl.textContent = [loaderLabel(server.loader), server.mcVersion].filter(Boolean).join(' ');
+    main.appendChild(nameRow);
     main.appendChild(descEl);
+
+    if (server.loader && server.mcVersion) {
+      window.api.getServerOptimized(server.id).then((optimized) => {
+        if (optimized) descEl.textContent += ' — Optimiser';
+      });
+    }
+
+    // Crack (offline-mode) / Premium (online-mode) — pas dans le ping
+    // standard, sonde à part (voir src/lib/serverPing.js) donc en tâche de
+    // fond comme le favicon, sans bloquer l'affichage de la carte.
+    if (server.ip) {
+      window.api.getServerOnlineMode(server.id).then((mode) => {
+        if (!mode) return; // indéterminé (timeout, offline...) : pas de badge plutôt qu'un badge faux
+        const badge = document.createElement('span');
+        badge.className = `server-mode-badge server-mode-${mode}`;
+        badge.textContent = mode === 'online' ? window.i18n.t('server.premium') : window.i18n.t('server.crack');
+        badge.title = mode === 'online' ? window.i18n.t('server.premiumHint') : window.i18n.t('server.crackHint');
+        nameRow.appendChild(badge);
+      });
+    }
 
     const editBtn = document.createElement('button');
     editBtn.className = 'server-edit-btn';
@@ -259,6 +294,7 @@ const modalSaveBtn = document.getElementById('modal-save-btn');
 const modalCancelBtn = document.getElementById('modal-cancel-btn');
 
 function closeModal() {
+  if (closeOpenDropdown) closeOpenDropdown(); // dropdown custom attaché à <body>, pas à modalFields
   modalOverlay.classList.remove('active');
   modalFields.innerHTML = '';
   modalSaveBtn.onclick = null;
@@ -312,76 +348,146 @@ function addModalField(labelText, { type = 'text', value = '', placeholder = '' 
   return input;
 }
 
+// Dropdown maison plutôt qu'un <select> natif : sa popup est dessinée par
+// l'OS, ignore complètement le thème (fond blanc) et — pire — déborde de la
+// fenêtre (fenêtre sans bordure, petite taille) au lieu d'y rester contenue.
+// position:fixed + calcul manuel de la position = reste toujours dans la
+// fenêtre, avec le bon habillage (voir .dropdown-list dans le CSS).
+let closeOpenDropdown = null;
+
 function addModalSelect(labelText, options, selected) {
   const row = document.createElement('div');
   row.className = 'modal-field-row';
   const label = document.createElement('label');
   label.textContent = labelText;
-  const select = document.createElement('select');
-  select.className = 'field';
-  options.forEach((opt) => {
-    const optionEl = document.createElement('option');
-    optionEl.value = opt;
-    optionEl.textContent = opt;
-    if (opt === selected) optionEl.selected = true;
-    select.appendChild(optionEl);
-  });
   row.appendChild(label);
-  row.appendChild(select);
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'field dropdown-trigger';
+  const state = { value: selected ?? options[0] ?? '' };
+  trigger.textContent = state.value;
+  row.appendChild(trigger);
   modalFields.appendChild(row);
-  return select;
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (closeOpenDropdown) { closeOpenDropdown(); return; } // un 2e clic referme
+
+    const list = document.createElement('div');
+    list.className = 'dropdown-list';
+    const rect = trigger.getBoundingClientRect();
+    list.style.width = `${rect.width}px`;
+    list.style.left = `${rect.left}px`;
+    // Vers le bas par défaut (quitte à scroller dans la liste plutôt que de
+    // s'ouvrir vers le haut) — seulement vers le haut si vraiment plus assez
+    // de place en dessous (ex: champ tout en bas du modal).
+    const minSpaceBelow = 100;
+    if (window.innerHeight - rect.bottom < minSpaceBelow) {
+      list.style.bottom = `${window.innerHeight - rect.top + 4}px`;
+    } else {
+      list.style.top = `${rect.bottom + 4}px`;
+    }
+
+    options.forEach((opt) => {
+      const item = document.createElement('div');
+      item.className = 'dropdown-item' + (opt === state.value ? ' selected' : '');
+      item.textContent = opt;
+      item.addEventListener('click', () => {
+        state.value = opt;
+        trigger.textContent = opt;
+        close();
+      });
+      list.appendChild(item);
+    });
+    document.body.appendChild(list);
+
+    function close() {
+      list.remove();
+      document.removeEventListener('click', onOutsideClick);
+      closeOpenDropdown = null;
+    }
+    function onOutsideClick(ev) {
+      if (!list.contains(ev.target)) close();
+    }
+    setTimeout(() => document.addEventListener('click', onOutsideClick), 0);
+    closeOpenDropdown = close;
+  });
+
+  return { get value() { return state.value; } };
 }
 
-function addModalCheckbox(labelText, checked) {
+// iconUrl optionnelle (logo Modrinth du mod/shader) — voir addons.js.
+function addAddonIcon(row, iconUrl) {
+  if (!iconUrl) return;
+  const img = document.createElement('img');
+  img.className = 'addon-icon';
+  img.src = iconUrl;
+  img.alt = '';
+  row.appendChild(img);
+}
+
+function addModalCheckbox(container, labelText, checked, iconUrl) {
   const row = document.createElement('label');
   row.className = 'checkbox-row';
   const input = document.createElement('input');
   input.type = 'checkbox';
   input.checked = checked;
+  row.appendChild(input);
+  addAddonIcon(row, iconUrl);
   const span = document.createElement('span');
   span.textContent = labelText;
-  row.appendChild(input);
   row.appendChild(span);
-  modalFields.appendChild(row);
+  container.appendChild(row);
   return input;
 }
 
-// Comme addModalCheckbox, mais en radio (un seul choix par `groupName`) —
-// pour des addons mutuellement exclusifs (ex: Fabulously Optimized vs
-// Fresh Animations, incompatibles ensemble).
-function addModalRadio(labelText, groupName, checked) {
-  const row = document.createElement('label');
-  row.className = 'checkbox-row';
-  const input = document.createElement('input');
-  input.type = 'radio';
-  input.name = `addon-group-${groupName}`;
-  input.checked = checked;
-  const span = document.createElement('span');
-  span.textContent = labelText;
-  row.appendChild(input);
-  row.appendChild(span);
-  modalFields.appendChild(row);
-  return input;
+// Pour des addons mutuellement exclusifs (ex: Fabulously Optimized vs Fresh
+// Animations, incompatibles ensemble) — pas des radios natifs (rond bleu
+// de l'OS, hors thème), un vrai switch segmenté maison à la place.
+// `items`: [{ id, label, iconUrl, checked }]. Renvoie une Map id -> objet
+// avec un getter .checked, pour rester compatible avec le code appelant
+// (même contrat qu'un <input>.checked).
+function addModalSegmentedGroup(container, items) {
+  const row = document.createElement('div');
+  row.className = 'segmented-switch';
+
+  let activeId = (items.find((i) => i.checked) || items[0])?.id;
+  const buttons = new Map();
+  const proxies = new Map();
+
+  function refresh() {
+    buttons.forEach((btn, id) => btn.classList.toggle('active', id === activeId));
+  }
+
+  items.forEach((item) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'segmented-switch-btn';
+    addAddonIcon(btn, item.iconUrl);
+    const span = document.createElement('span');
+    span.textContent = item.label;
+    btn.appendChild(span);
+    btn.addEventListener('click', () => {
+      activeId = item.id;
+      refresh();
+    });
+    buttons.set(item.id, btn);
+    row.appendChild(btn);
+    proxies.set(item.id, { get checked() { return activeId === item.id; } });
+  });
+
+  refresh();
+  container.appendChild(row);
+  return proxies;
 }
 
-// Modal à cases à cocher pour les mods/shaders optionnels (kind: 'mods' ou
-// 'shaders') — activés côté joueur, en plus du modpack du serveur.
-async function openAddonModal(kind) {
-  const [catalog, settings] = await Promise.all([window.api.getAddonCatalog(), window.api.getSettings()]);
-  const items = catalog[kind];
-  const enabled = new Set(settings.enabledAddons || []);
-
-  modalTitle.textContent = window.i18n.t(kind === 'mods' ? 'addons.modsTitle' : 'addons.shadersTitle');
-  modalFields.innerHTML = '';
-  const hint = document.createElement('p');
-  hint.className = 'hint';
-  hint.style.marginBottom = '8px';
-  hint.textContent = window.i18n.t('addons.hint');
-  modalFields.appendChild(hint);
-
-  // Les addons qui partagent un `group` (ex: Fabulously Optimized / Fresh
-  // Animations, incompatibles ensemble) s'affichent en radio — un seul
-  // choix possible — le reste en cases à cocher indépendantes.
+// Rend une liste d'addons (mods/shaders/texture packs) dans un conteneur
+// donné — switch segmenté pour les addons groupés (mutuellement exclusifs),
+// case à cocher simple pour le reste. Renvoie les controls créés, pour que
+// l'appelant puisse relire lesquels sont cochés au moment d'enregistrer.
+function renderAddonList(container, items, enabledIds) {
+  container.innerHTML = '';
   const groups = new Map();
   const standalone = [];
   for (const item of items) {
@@ -395,36 +501,84 @@ async function openAddonModal(kind) {
 
   const controls = [];
   for (const groupItems of groups.values()) {
-    groupItems.forEach((item) => {
-      controls.push({ item, input: addModalRadio(item.name, item.group, enabled.has(item.id)) });
-    });
+    const proxies = addModalSegmentedGroup(container, groupItems.map((item) => ({
+      id: item.id,
+      label: item.name,
+      iconUrl: item.iconUrl,
+      checked: enabledIds.has(item.id)
+    })));
+    groupItems.forEach((item) => controls.push({ item, input: proxies.get(item.id) }));
   }
   standalone.forEach((item) => {
-    controls.push({ item, input: addModalCheckbox(item.name, enabled.has(item.id)) });
+    controls.push({ item, input: addModalCheckbox(container, item.name, enabledIds.has(item.id), item.iconUrl) });
   });
-
-  modalSaveBtn.onclick = async () => {
-    const otherKind = kind === 'mods' ? catalog.shaders : catalog.mods;
-    const keptIds = (settings.enabledAddons || []).filter((id) => otherKind.some((i) => i.id === id));
-    const newIds = controls.filter((c) => c.input.checked).map((c) => c.item.id);
-    await window.api.setEnabledAddons([...keptIds, ...newIds]);
-    closeModal();
-  };
-  modalOverlay.classList.add('active');
+  return controls;
 }
 
-document.getElementById('mods-btn').addEventListener('click', () => openAddonModal('mods'));
-document.getElementById('shaders-btn').addEventListener('click', () => openAddonModal('shaders'));
+// --- Écran Mods/Shaders/Texture packs (onglet dédié, pas un popup) ---
+const addonsSaveBtn = document.getElementById('addons-save-btn');
+const addonsSaveStatus = document.getElementById('addons-save-status');
+let addonsAllControls = [];
 
-function openEditServerModal(server) {
+async function renderAddonsScreen() {
+  const [catalog, settings] = await Promise.all([window.api.getAddonCatalog(), window.api.getSettings()]);
+  const enabledIds = new Set(settings.enabledAddons || []);
+
+  addonsSaveStatus.textContent = '';
+  addonsAllControls = [
+    ...renderAddonList(document.getElementById('addons-mods-list'), catalog.mods, enabledIds),
+    ...renderAddonList(document.getElementById('addons-shaders-list'), catalog.shaders, enabledIds),
+    ...renderAddonList(document.getElementById('addons-texturepacks-list'), catalog.texturepacks, enabledIds)
+  ];
+}
+
+addonsSaveBtn.addEventListener('click', async () => {
+  const ids = addonsAllControls.filter((c) => c.input.checked).map((c) => c.item.id);
+  await window.api.setEnabledAddons(ids);
+  addonsSaveStatus.textContent = window.i18n.t('addons.saved');
+});
+
+// Un seul champ pour IP+port, comme la "connexion rapide" de Minecraft :
+// "play.exemple.fr" (port par défaut) ou "play.exemple.fr:25566" (port
+// custom). On ne coupe que si ce qui suit le dernier ":" est un port valide
+// — une IPv6 littérale sans port (plusieurs ":") reste donc intacte.
+function parseIpPort(input, defaultPort = 25565) {
+  const trimmed = input.trim();
+  const idx = trimmed.lastIndexOf(':');
+  if (idx > 0) {
+    const portPart = trimmed.slice(idx + 1);
+    const port = Number(portPart);
+    if (/^\d+$/.test(portPart) && port > 0 && port < 65536) {
+      return { ip: trimmed.slice(0, idx), port };
+    }
+  }
+  return { ip: trimmed, port: defaultPort };
+}
+
+function ipPortValue(server) {
+  const defaultPort = 25565;
+  return server.port && server.port !== defaultPort ? `${server.ip}:${server.port}` : (server.ip || '');
+}
+
+// Mise en cache — même liste tant que l'appli tourne, pas besoin de la
+// retélécharger (~centaines de Ko) à chaque ouverture d'un modal serveur.
+let mcVersionsCache = null;
+async function getMcVersionsCached() {
+  if (!mcVersionsCache) mcVersionsCache = await window.api.getMcVersions();
+  return mcVersionsCache;
+}
+
+async function openEditServerModal(server) {
+  const versions = await getMcVersionsCached();
   modalTitle.textContent = window.i18n.t('modal.editTitle', { name: server.name });
   modalFields.innerHTML = '';
   const nameInput = addModalField(window.i18n.t('field.name'), { value: server.name, placeholder: 'Mon serveur' });
-  const ipInput = addModalField(window.i18n.t('field.ip'), { value: server.ip, placeholder: 'play.exemple.fr' });
-  const portInput = addModalField(window.i18n.t('field.port'), { type: 'number', value: server.port || 25565 });
+  const ipInput = addModalField(window.i18n.t('field.ip'), { value: ipPortValue(server), placeholder: 'play.exemple.fr ou play.exemple.fr:25566' });
+  // Version avant loader (pas l'inverse) : sa liste est bien plus longue
+  // (100+ entrées) — la laisser plus haut dans le modal lui donne plus de
+  // place pour s'ouvrir vers le bas.
+  const versionSelect = addModalSelect(window.i18n.t('field.mcVersion'), versions, server.mcVersion);
   const loaderSelect = addModalSelect(window.i18n.t('field.loader'), ['vanilla', 'fabric', 'forge', 'neoforge'], server.loader);
-  const versionInput = addModalField(window.i18n.t('field.mcVersion'), { value: server.mcVersion, placeholder: '1.21.1' });
-  const iconInput = addModalField(window.i18n.t('field.icon'), { value: server.icon || '', placeholder: 'https://.../icone.png' });
 
   // Pas de popup système (confirm()) — le bouton lui-même se transforme en
   // décompte de 3s avant de devenir cliquable pour de vrai, façon "tiens le
@@ -468,16 +622,14 @@ function openEditServerModal(server) {
   modalFields.appendChild(deleteErrorEl);
 
   modalSaveBtn.onclick = async () => {
-    const ip = ipInput.value.trim();
-    if (!ip) return;
-    const port = Number(portInput.value) || 25565;
+    if (!ipInput.value.trim()) return;
+    const { ip, port } = parseIpPort(ipInput.value);
     await window.api.updateServer(server.id, {
       name: nameInput.value.trim(),
       ip,
       port,
       loader: loaderSelect.value,
-      mcVersion: versionInput.value.trim(),
-      icon: iconInput.value.trim()
+      mcVersion: versionSelect.value
     });
     closeModal();
     await loadServerList();
@@ -486,32 +638,25 @@ function openEditServerModal(server) {
   modalOverlay.classList.add('active');
 }
 
-function openAddServerModal() {
+async function openAddServerModal() {
+  const versions = await getMcVersionsCached();
   modalTitle.textContent = window.i18n.t('modal.addTitle');
   modalFields.innerHTML = '';
-  const nameInput = addModalField(window.i18n.t('field.name'), { placeholder: 'Mon serveur' });
-  const descInput = addModalField(window.i18n.t('field.description'), { placeholder: 'Fabric 1.21 — Survie' });
-  const ipInput = addModalField(window.i18n.t('field.ip'), { placeholder: 'play.exemple.fr' });
-  const portInput = addModalField(window.i18n.t('field.port'), { type: 'number', value: 25565 });
+  const ipInput = addModalField(window.i18n.t('field.ip'), { placeholder: 'play.exemple.fr ou play.exemple.fr:25566' });
+  const versionSelect = addModalSelect(window.i18n.t('field.mcVersion'), versions, versions[0]);
   const loaderSelect = addModalSelect(window.i18n.t('field.loader'), ['vanilla', 'fabric', 'forge', 'neoforge'], 'fabric');
-  const versionInput = addModalField(window.i18n.t('field.mcVersion'), { placeholder: '1.21.1' });
   const manifestInput = addModalField(window.i18n.t('field.manifestUrl'), { placeholder: 'fabulously-optimized, .mrpack, ou manifest.json' });
-  const iconInput = addModalField(window.i18n.t('field.icon'), { placeholder: 'https://.../icone.png' });
 
   modalSaveBtn.onclick = async () => {
-    const name = nameInput.value.trim();
-    const ip = ipInput.value.trim();
-    if (!name || !ip) return;
+    if (!ipInput.value.trim()) return;
+    const { ip, port } = parseIpPort(ipInput.value);
     await window.api.addServer({
-      name,
-      description: descInput.value.trim(),
       ip,
-      port: Number(portInput.value) || 25565,
+      port,
       loader: loaderSelect.value,
-      mcVersion: versionInput.value.trim(),
+      mcVersion: versionSelect.value,
       loaderVersion: '',
-      manifestUrl: manifestInput.value.trim(),
-      icon: iconInput.value.trim()
+      manifestUrl: manifestInput.value.trim()
     });
     closeModal();
     await loadServerList();

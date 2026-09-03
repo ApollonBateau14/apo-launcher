@@ -34,6 +34,7 @@
       <nav class="nav">
         <button class="nav-item active" data-screen="connexion" data-i18n="nav.connexion">Connexion</button>
         <button class="nav-item" data-screen="play" data-i18n="nav.play">Play</button>
+        <button class="nav-item" data-screen="addons" data-i18n="nav.addons">Mods</button>
         <button class="nav-item" data-screen="settings" data-i18n="nav.settings">Paramètres</button>
       </nav>
 
@@ -84,17 +85,32 @@
             </div>
             <div class="status-details" id="status-details"></div>
           </div>
-          <div class="addon-buttons">
-            <button class="btn addon-btn" id="mods-btn" data-i18n="addons.mods">Mods</button>
-            <button class="btn addon-btn" id="shaders-btn" data-i18n="addons.shaders">Shaders</button>
+          <div class="play-btn-group">
+            <button class="btn" id="retry-launch-btn" data-i18n="play.retry" hidden>Réessayer</button>
+            <button class="btn primary" id="play-btn" data-i18n="play.play">Jouer</button>
           </div>
         </div>
-
-        <div class="btn-row" style="margin-top:20px;">
-          <button class="btn primary" id="play-btn" data-i18n="play.play">Jouer</button>
-          <button class="btn" id="retry-launch-btn" data-i18n="play.retry" hidden>Réessayer</button>
-        </div>
         <p class="hint" id="launch-progress"></p>
+      </section>
+
+      <!-- Écran Mods/Shaders/Texture packs — optionnels côté joueur, en plus
+           du modpack imposé par le serveur (server.manifestUrl). -->
+      <section class="screen" id="screen-addons">
+        <p class="hint" data-i18n="addons.hint">On top of the server modpack — enabled on your side only.</p>
+
+        <p class="panel-title" style="margin-top:14px;" data-i18n="addons.modsTitle">Mods optionnels</p>
+        <div id="addons-mods-list"></div>
+
+        <p class="panel-title" style="margin-top:18px;" data-i18n="addons.shadersTitle">Shaders</p>
+        <div id="addons-shaders-list"></div>
+
+        <p class="panel-title" style="margin-top:18px;" data-i18n="addons.texturepacksTitle">Texture packs</p>
+        <div id="addons-texturepacks-list"></div>
+
+        <div class="btn-row" style="margin-top:16px;">
+          <button class="btn primary" id="addons-save-btn" data-i18n="modal.save">Enregistrer</button>
+        </div>
+        <p class="hint" id="addons-save-status"></p>
       </section>
 
       <!-- Écran Paramètres -->
@@ -155,7 +171,7 @@
   <!-- Éditeur de skin — plein écran (sous la titlebar), séparé du reste de
        la nav pour laisser toute la place à l'aperçu 3D + aux galeries. -->
   <div class="skin-editor-overlay" id="skin-editor-overlay">
-    <button class="skin-editor-close" id="skin-editor-close">✕</button>
+    <button class="skin-editor-close overlay-close-btn" id="skin-editor-close" data-i18n="changelog.close">Fermer</button>
     <div class="skin-editor-left">
       <div class="skin-preview-frame">
         <canvas id="skin-3d-canvas" width="240" height="330"></canvas>
@@ -193,7 +209,7 @@
         <button class="namemc-nav-btn" id="namemc-forward" data-i18n-title="skin.namemcForward" title="Suivant" disabled>›</button>
         <span data-i18n="skin.browseNamemc">Chercher un skin sur NameMC</span>
       </div>
-      <button class="namemc-close-btn" id="namemc-close" data-i18n="changelog.close">Fermer</button>
+      <button class="overlay-close-btn" id="namemc-close" data-i18n="changelog.close">Fermer</button>
     </div>
     <!-- Pas de src ici : chargé au premier clic depuis renderer.js, pour
          laisser le temps à uBlock Origin de se charger dans la session

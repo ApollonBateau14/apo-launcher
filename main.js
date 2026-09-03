@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const Store = require('electron-store');
-const { pingServer } = require('./src/lib/serverPing');
+const { pingServer, checkOnlineMode } = require('./src/lib/serverPing');
 const { checkModpackUpdate } = require('./src/lib/modpack');
 const { launchGame, getGameDir } = require('./src/lib/launcher');
 const launchLog = require('./src/lib/launchLog');
@@ -14,20 +14,30 @@ const autoUpdate = require('./src/lib/autoUpdate');
 const msAuth = require('./src/lib/msAuth');
 const skins = require('./src/lib/skins');
 const { ensureAdblockLoaded } = require('./src/lib/adblock');
+const { getReleaseVersions } = require('./src/lib/javaRuntime');
 
 // Métadonnées des serveurs : pas sensible, ça reste dans le code (public sur GitHub).
 // Complète/adapte cette liste avec tes vrais serveurs et leurs manifests GitHub.
 // L'IP/port réels NE sont PAS ici — voir servers.ip.json (jamais commité, cf. .gitignore).
 const SERVERS_META = [
+  // Serveur public connu de tous — pas de risque à le donner par défaut à
+  // n'importe qui qui installe l'appli (contrairement à un serveur privé
+  // dont l'IP fuiterait sans que la personne ait rien demandé). Un serveur
+  // perso s'ajoute à la main (bouton "+ Ajouter un serveur") ou en éditant
+  // servers.ip.json avant de build pour une install pré-configurée.
   {
-    id: 'femboyserver',
-    name: 'FemboyServer',
-    description: 'Fabric 26.1.2 — Optimiser',
-    loader: 'fabric',
-    mcVersion: '26.1.2',
+    id: 'hypixel',
+    name: 'Hypixel',
+    description: '',
+    loader: 'vanilla',
+    mcVersion: '',
     loaderVersion: '',
     manifestUrl: '',
-    icon: ''
+    icon: '',
+    // IP publique officielle — pas un secret, contrairement aux IP privées
+    // (celles-là restent exclusivement dans servers.ip.json).
+    ip: 'mc.hypixel.net',
+    port: 25565
   }
 ];
 
@@ -64,8 +74,12 @@ function buildServersList() {
     return {
       ...meta,
       name: prev?.name || meta.name,
-      ip: prev?.ip || ips[meta.id]?.ip || '',
-      port: prev?.port || ips[meta.id]?.port || 25565,
+      // meta.ip en dernier recours : utile pour un serveur PUBLIC (ex:
+      // Hypixel) codé en dur directement dans SERVERS_META — un serveur
+      // privé continue de passer exclusivement par servers.ip.json (jamais
+      // commité), meta.ip reste vide pour ceux-là.
+      ip: prev?.ip || ips[meta.id]?.ip || meta.ip || '',
+      port: prev?.port || ips[meta.id]?.port || meta.port || 25565,
       loader: prev?.loader || meta.loader,
       mcVersion: prev?.mcVersion || meta.mcVersion,
       icon: prev?.icon || meta.icon
@@ -353,7 +367,16 @@ ipcMain.handle('update-server', (_e, { serverId, name, ip, port, loader, mcVersi
   const servers = store.get('servers', []);
   const server = servers.find((s) => s.id === serverId);
   if (!server) return false;
-  if (name && name.trim()) server.name = name.trim();
+  const trimmedName = (name || '').trim();
+  if (trimmedName) {
+    server.name = trimmedName;
+  } else {
+    // Nom vidé dans le modal : revient au nom par défaut du serveur au lieu
+    // de garder silencieusement l'ancien (comportement précédent, pas clair
+    // — on avait l'impression que "vider le champ" ne faisait juste rien).
+    const meta = SERVERS_META.find((m) => m.id === serverId);
+    if (meta) server.name = meta.name;
+  }
   server.ip = ip;
   server.port = port;
   if (loader) server.loader = loader;
@@ -403,7 +426,10 @@ ipcMain.handle('remove-server', (_e, serverId) => {
 // ---- IPC: ajouter un serveur depuis l'appli (bouton "+ Ajouter un serveur") ----
 ipcMain.handle('add-server', (_e, data) => {
   const servers = store.get('servers', []);
-  const baseId = slugify(data.name || '');
+  // Pas de champ "nom" dans le modal — l'adresse tapée (ex: "play.exemple.fr")
+  // sert de nom automatique, plus parlant qu'un id générique ("serveur-3").
+  const name = data.name || data.ip || 'serveur';
+  const baseId = slugify(name);
   let id = baseId;
   let suffix = 2;
   while (servers.some((s) => s.id === id)) {
@@ -412,7 +438,7 @@ ipcMain.handle('add-server', (_e, data) => {
 
   const newServer = {
     id,
-    name: data.name || id,
+    name,
     description: data.description || '',
     loader: data.loader || 'vanilla',
     mcVersion: data.mcVersion || '',
@@ -459,6 +485,48 @@ ipcMain.handle('get-server-favicon', async (_e, serverId) => {
     return result.favicon || null;
   } catch {
     return null;
+  }
+});
+
+// ---- IPC: mode du serveur (crack/offline-mode ou premium/online-mode) ----
+// Pas exposé par le ping standard — voir src/lib/serverPing.js#checkOnlineMode.
+ipcMain.handle('get-server-online-mode', async (_e, serverId) => {
+  const servers = store.get('servers', []);
+  const server = servers.find((s) => s.id === serverId);
+  if (!server || !server.ip) return null;
+  try {
+    const status = await pingServer(server.ip, server.port);
+    if (!status.online || !status.protocol) return null;
+    return await checkOnlineMode(server.ip, server.port, status.protocol);
+  } catch {
+    return null;
+  }
+});
+
+// ---- IPC: liste des versions Minecraft "release" (manifest Mojang) ----
+// Pour le sélecteur de version dans les modals serveur, plus fiable qu'une
+// saisie à la main.
+ipcMain.handle('get-mc-versions', async () => {
+  try {
+    return await getReleaseVersions();
+  } catch (err) {
+    console.error('[ApoLauncher] Versions Minecraft indisponibles :', err.message);
+    return [];
+  }
+});
+
+// ---- IPC: "Optimiser" — Fabulously Optimized est-il compatible avec ce
+// serveur (loader + version) ? Utilisé pour la description auto-générée
+// de la carte serveur (ex: "Fabric 26.1.2 — Optimiser").
+ipcMain.handle('get-server-optimized', async (_e, serverId) => {
+  const servers = store.get('servers', []);
+  const server = servers.find((s) => s.id === serverId);
+  if (!server) return false;
+  try {
+    const { mods } = await getCompatibleCatalog(server);
+    return mods.some((m) => m.id === 'fabulously-optimized');
+  } catch {
+    return false;
   }
 });
 

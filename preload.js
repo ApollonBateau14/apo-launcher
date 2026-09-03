@@ -40,6 +40,9 @@ contextBridge.exposeInMainWorld('api', {
 
   pingServer: () => ipcRenderer.invoke('ping-server'),
   getServerFavicon: (serverId) => ipcRenderer.invoke('get-server-favicon', serverId),
+  getServerOnlineMode: (serverId) => ipcRenderer.invoke('get-server-online-mode', serverId),
+  getServerOptimized: (serverId) => ipcRenderer.invoke('get-server-optimized', serverId),
+  getMcVersions: () => ipcRenderer.invoke('get-mc-versions'),
   checkModpack: () => ipcRenderer.invoke('check-modpack'),
   launchGame: () => ipcRenderer.invoke('launch-game'),
   onLaunchProgress: (callback) => {

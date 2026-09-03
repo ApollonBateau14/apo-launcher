@@ -48,12 +48,23 @@ function getInstalledJavaMajor(javaExe) {
   });
 }
 
+// Mis en cache en mémoire (juste la durée de l'appli) — même manifest
+// utilisé par getRequiredJavaMajor et getReleaseVersions, pas besoin de le
+// re-télécharger à chaque fois (plusieurs centaines de Ko).
+let cachedManifest = null;
+async function getVersionManifest() {
+  if (cachedManifest) return cachedManifest;
+  const res = await fetch('https://launchermeta.mojang.com/mc/game/version_manifest_v2.json');
+  if (!res.ok) throw new Error(`Manifest Mojang inaccessible (HTTP ${res.status})`);
+  cachedManifest = await res.json();
+  return cachedManifest;
+}
+
 // Lit la version Java requise directement depuis le manifest officiel Mojang
 // pour cette version de Minecraft (champ javaVersion.majorVersion).
 async function getRequiredJavaMajor(mcVersion) {
   try {
-    const manifestRes = await fetch('https://launchermeta.mojang.com/mc/game/version_manifest_v2.json');
-    const manifest = await manifestRes.json();
+    const manifest = await getVersionManifest();
     const entry = manifest.versions.find((v) => v.id === mcVersion);
     if (!entry) return null;
     const versionRes = await fetch(entry.url);
@@ -63,6 +74,15 @@ async function getRequiredJavaMajor(mcVersion) {
     console.error('[ApoLauncher] Impossible de déterminer la version Java requise :', err.message);
     return null;
   }
+}
+
+// Liste des versions "release" (pas les snapshots/alpha/beta — un serveur
+// modded tourne quasi toujours sur une release) — pour le sélecteur de
+// version dans les modals d'ajout/édition de serveur, plus fiable qu'une
+// saisie à la main (typo, version inexistante...).
+async function getReleaseVersions() {
+  const manifest = await getVersionManifest();
+  return manifest.versions.filter((v) => v.type === 'release').map((v) => v.id);
 }
 
 function getAdoptiumOs() {
@@ -144,4 +164,4 @@ async function ensureJava(mcVersion, onProgress) {
   return javaw;
 }
 
-module.exports = { ensureJava };
+module.exports = { ensureJava, getReleaseVersions };

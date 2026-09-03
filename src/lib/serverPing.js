@@ -125,6 +125,7 @@ function pingResolved(host, port, timeoutMs) {
           playersMax: data.players?.max ?? 0,
           sample: data.players?.sample || [], // [{name, id (uuid)}]
           favicon: data.favicon || null, // data:image/png;base64,... (icône 64x64 du serveur)
+          protocol: data.version?.protocol ?? null, // utilisé pour la sonde online-mode
           ping
         });
       } catch (err) {
@@ -146,4 +147,95 @@ function pingResolved(host, port, timeoutMs) {
   });
 }
 
-module.exports = { pingServer, resolveServerAddress };
+// --- Détection Crack (offline-mode) / Premium (online-mode) ---------------
+// Pas exposé par le Server List Ping standard (juste motd/joueurs/version) :
+// on démarre un vrai handshake de connexion (état "login") avec un pseudo
+// bidon, sans jamais terminer la connexion. En online-mode, le serveur
+// envoie TOUJOURS un paquet "Encryption Request" (id 0x01) juste après le
+// Login Start, avant même de savoir si le pseudo existe vraiment côté
+// Mojang — sa seule présence suffit à distinguer les deux modes. On coupe
+// la connexion dès le premier paquet reçu, jamais de vraie tentative de
+// connexion au serveur.
+
+function buildLoginHandshakePacket(host, port, protocolVersion) {
+  const hostBuf = Buffer.from(host, 'utf8');
+  const payload = Buffer.concat([
+    writeVarInt(0x00),
+    writeVarInt(protocolVersion),
+    writeVarInt(hostBuf.length),
+    hostBuf,
+    Buffer.from([(port >> 8) & 0xff, port & 0xff]),
+    writeVarInt(2) // next state: login
+  ]);
+  return Buffer.concat([writeVarInt(payload.length), payload]);
+}
+
+// Format moderne (1.19.3+, protocole >= 761) : nom + UUID obligatoire (plus
+// de champ optionnel comme en 1.19-1.19.2). Suffisant pour toutes les
+// versions ciblées par ce launcher — l'UUID envoyé n'a pas besoin d'être
+// valide, on n'ira jamais jusqu'au bout du login.
+function buildLoginStartPacket(username) {
+  const nameBuf = Buffer.from(username, 'utf8');
+  const uuidBuf = Buffer.alloc(16); // UUID nul, suffisant pour la sonde
+  const payload = Buffer.concat([
+    writeVarInt(0x00),
+    writeVarInt(nameBuf.length),
+    nameBuf,
+    uuidBuf
+  ]);
+  return Buffer.concat([writeVarInt(payload.length), payload]);
+}
+
+function probeLoginMode(host, port, protocolVersion, timeoutMs) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    let buffer = Buffer.alloc(0);
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      socket.destroy();
+      resolve(result);
+    };
+
+    const timer = setTimeout(() => finish(null), timeoutMs);
+    socket.on('error', () => finish(null));
+
+    socket.connect(port, host, () => {
+      const handshake = buildLoginHandshakePacket(host, port, protocolVersion);
+      const loginStart = buildLoginStartPacket('ApoLauncherCheck');
+      socket.write(Buffer.concat([handshake, loginStart]));
+    });
+
+    socket.on('data', (chunk) => {
+      buffer = Buffer.concat([buffer, chunk]);
+      try {
+        const { value: packetLength, length: lenBytes } = readVarInt(buffer, 0);
+        if (buffer.length < lenBytes + packetLength) return;
+        const { value: packetId } = readVarInt(buffer, lenBytes);
+        // 0x01 = Encryption Request, envoyé uniquement en online-mode.
+        finish(packetId === 0x01 ? 'online' : 'offline');
+      } catch {
+        // paquet incomplet, on attend la suite
+      }
+    });
+  });
+}
+
+/**
+ * @returns {Promise<'online'|'offline'|null>} 'online' = premium requis,
+ * 'offline' = crack accepté, null = indéterminé (timeout/erreur réseau).
+ */
+async function checkOnlineMode(host, port, protocolVersion, timeoutMs = 4000) {
+  if (!protocolVersion) return null;
+  try {
+    const resolved = await resolveServerAddress(host, port);
+    return await probeLoginMode(resolved.host, resolved.port, protocolVersion, timeoutMs);
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { pingServer, resolveServerAddress, checkOnlineMode };

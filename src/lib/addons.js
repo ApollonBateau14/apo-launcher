@@ -21,7 +21,11 @@ const { downloadAndVerify } = require('./download');
 const MOD_ADDONS = [
   { id: 'fabulously-optimized', name: 'Fabulously Optimized', kind: 'modpack', defaultOn: true, group: 'main-pack' },
   { id: 'fresh-animations', name: 'Fresh Animations', kind: 'resourcepack', defaultOn: false, group: 'main-pack' },
-  { id: 'xaeros-minimap', name: "Minimap (Xaero's)", kind: 'mod', defaultOn: false }
+  { id: 'xaeros-minimap', name: "Minimap (Xaero's)", kind: 'mod', defaultOn: false },
+  // Rend la 2e couche du skin (chapeau, veste, manches...) en vraie
+  // géométrie 3D au lieu d'un aplat gonflé — meilleur rendu des skins
+  // avec capuche/cheveux qui dépassent, entre autres.
+  { id: '3dskinlayers', name: '3D Skin Layers', kind: 'mod', defaultOn: false }
 ];
 
 const SHADER_ADDONS = [
@@ -32,6 +36,17 @@ const SHADER_ADDONS = [
   { id: 'makeup-ultra-fast-shaders', name: 'MakeUp - UltraFast' }
 ].map((s) => ({ ...s, kind: 'shader', defaultOn: false }));
 
+// Même mécanique que les shaders (liste choisie à la main, filtrée par
+// compatibilité) — les resourcepacks/texture packs ne sont pas tagués par
+// mod-loader sur Modrinth (juste "minecraft"), voir resolveBestFile plus bas.
+const TEXTURE_PACK_ADDONS = [
+  { id: 'faithful-64x', name: 'Faithful 64x' },
+  { id: 'faithful-32x', name: 'Faithful 32x' },
+  { id: 'dandelion-x', name: 'Dandelion X' },
+  { id: 'jicklus', name: 'JICKLUS' },
+  { id: 'glass-bottom-boat-32x', name: 'Glass Bottom Boat' }
+].map((t) => ({ ...t, kind: 'resourcepack', defaultOn: false }));
+
 // Un shaderpack a besoin d'Iris (Fabric/Quilt) ou Oculus (Forge/NeoForge)
 // pour tourner — installé automatiquement dès qu'un shader est activé,
 // sans que ce soit listé/coché séparément dans le catalogue affiché.
@@ -40,7 +55,7 @@ const SHADER_LOADER_BY_LOADER = { fabric: 'iris', quilt: 'iris', forge: 'oculus'
 const DEST_FOLDER_BY_KIND = { mod: 'mods', resourcepack: 'resourcepacks', shader: 'shaderpacks' };
 
 function getCatalog() {
-  return { mods: MOD_ADDONS, shaders: SHADER_ADDONS };
+  return { mods: MOD_ADDONS, shaders: SHADER_ADDONS, texturepacks: TEXTURE_PACK_ADDONS };
 }
 
 // Vrai s'il existe au moins une version de cet addon compatible avec le
@@ -67,8 +82,47 @@ async function getCompatibleCatalog(server) {
     const flags = await Promise.all(list.map((addon) => isAddonCompatible(addon, server)));
     return list.filter((_, i) => flags[i]);
   };
-  const [mods, shaders] = await Promise.all([filter(MOD_ADDONS), filter(SHADER_ADDONS)]);
-  return { mods, shaders };
+  const [mods, shaders, texturepacks] = await Promise.all([
+    filter(MOD_ADDONS),
+    filter(SHADER_ADDONS),
+    filter(TEXTURE_PACK_ADDONS)
+  ]);
+  const enriched = await withModrinthMetadata([...mods, ...shaders, ...texturepacks]);
+  const enrichedById = new Map(enriched.map((a) => [a.id, a]));
+  return {
+    mods: mods.map((m) => enrichedById.get(m.id) || m),
+    shaders: shaders.map((s) => enrichedById.get(s.id) || s),
+    texturepacks: texturepacks.map((t) => enrichedById.get(t.id) || t)
+  };
+}
+
+// Nom + icône officiels Modrinth pour chaque addon (au lieu du nom codé en
+// dur ici) — affichés dans le catalogue mods/shaders de l'appli. Mis en
+// cache en mémoire (juste la durée de l'appli, ces infos ne changent
+// quasiment jamais) et récupérés en un seul appel groupé plutôt qu'un par
+// addon (endpoint Modrinth prévu pour ça).
+const metadataCache = new Map();
+async function withModrinthMetadata(addons) {
+  const uncached = addons.filter((a) => !metadataCache.has(a.id));
+  if (uncached.length) {
+    try {
+      const ids = JSON.stringify(uncached.map((a) => a.id));
+      const res = await fetch(`https://api.modrinth.com/v2/projects?ids=${encodeURIComponent(ids)}`);
+      if (res.ok) {
+        const projects = await res.json();
+        for (const addon of uncached) {
+          const project = projects.find((p) => p.slug === addon.id || p.id === addon.id);
+          metadataCache.set(addon.id, project ? { name: project.title, iconUrl: project.icon_url || null } : null);
+        }
+      }
+    } catch {
+      // best-effort — l'UI retombe sur le nom codé en dur, pas d'icône
+    }
+  }
+  return addons.map((addon) => {
+    const meta = metadataCache.get(addon.id);
+    return meta ? { ...addon, name: meta.name || addon.name, iconUrl: meta.iconUrl } : addon;
+  });
 }
 
 // Même principe que la résolution de modpack Modrinth (loaders +
@@ -93,7 +147,13 @@ async function resolveBestFile(slug, server, kind) {
   } else if (server.loader && server.loader !== 'vanilla') {
     params.set('loaders', JSON.stringify([server.loader]));
   }
-  if (server.mcVersion) {
+  // Contrairement à un mod, un resourcepack tourne quasiment toujours même
+  // sans version taguée pile pour le serveur (le jeu affiche juste un
+  // avertissement "peut ne pas fonctionner", rien de plus concret) —
+  // filtrer par game_versions bloquait le catalogue ET le lancement pour
+  // rien (ex: Faithful 64x pas taggué "1.21.1" pile, alors qu'il tourne
+  // très bien dessus). On prend juste la dernière version publiée.
+  if (server.mcVersion && kind !== 'resourcepack') {
     params.set('game_versions', JSON.stringify([server.mcVersion]));
   }
 
@@ -146,7 +206,7 @@ function hasModWithPrefix(gameDir, prefixes) {
 // et on se retrouve avec deux Iris = crash au lancement.
 async function installEnabledAddons(server, enabledIds, onProgress) {
   const gameDir = getGameDir(server.id);
-  const catalog = [...MOD_ADDONS, ...SHADER_ADDONS];
+  const catalog = [...MOD_ADDONS, ...SHADER_ADDONS, ...TEXTURE_PACK_ADDONS];
   const selected = catalog.filter((a) => enabledIds.includes(a.id));
 
   const modpackAddons = selected.filter((a) => a.kind === 'modpack');

@@ -10,6 +10,7 @@ const TRANSLATIONS = {
   fr: {
     'nav.connexion': 'Connexion',
     'nav.play': 'Play',
+    'nav.addons': 'Mods',
     'nav.settings': 'Paramètres',
 
     'connexion.pseudoLabel': 'Pseudo',
@@ -39,6 +40,11 @@ const TRANSLATIONS = {
     'play.addServer': '+ Ajouter un serveur',
     'play.play': 'Jouer',
     'play.retry': 'Réessayer',
+
+    'server.crack': 'Crack',
+    'server.crackHint': 'Compte non-premium accepté (offline-mode).',
+    'server.premium': 'Premium',
+    'server.premiumHint': 'Compte Microsoft/premium obligatoire (online-mode).',
 
     'settings.ram': 'Mémoire allouée (RAM)',
     'settings.ramSuggested': 'Suggéré pour ta machine : {{value}} Go (cliquer pour appliquer)',
@@ -109,13 +115,16 @@ const TRANSLATIONS = {
     'addons.shaders': 'Shaders',
     'addons.modsTitle': 'Mods optionnels',
     'addons.shadersTitle': 'Shaders optionnels',
+    'addons.texturepacksTitle': 'Texture packs',
     'addons.hint': "En plus du modpack du serveur — activés côté joueur uniquement.",
+    'addons.saved': 'Enregistré — pris en compte au prochain lancement.',
     'launch.addonCheck': 'Vérification de {{name}}…',
     'launch.addonDownload': 'Téléchargement de {{name}}…'
   },
   en: {
     'nav.connexion': 'Login',
     'nav.play': 'Play',
+    'nav.addons': 'Mods',
     'nav.settings': 'Settings',
 
     'connexion.pseudoLabel': 'Username',
@@ -145,6 +154,11 @@ const TRANSLATIONS = {
     'play.addServer': '+ Add a server',
     'play.play': 'Play',
     'play.retry': 'Retry',
+
+    'server.crack': 'Crack',
+    'server.crackHint': 'Non-premium accounts allowed (offline-mode).',
+    'server.premium': 'Premium',
+    'server.premiumHint': 'Microsoft/premium account required (online-mode).',
 
     'settings.ram': 'Allocated memory (RAM)',
     'settings.ramSuggested': 'Suggested for your machine: {{value}} GB (click to apply)',
@@ -215,7 +229,9 @@ const TRANSLATIONS = {
     'addons.shaders': 'Shaders',
     'addons.modsTitle': 'Optional mods',
     'addons.shadersTitle': 'Optional shaders',
+    'addons.texturepacksTitle': 'Texture packs',
     'addons.hint': 'On top of the server modpack — enabled on your side only.',
+    'addons.saved': 'Saved — applied on next launch.',
     'launch.addonCheck': 'Checking {{name}}…',
     'launch.addonDownload': 'Downloading {{name}}…'
   }

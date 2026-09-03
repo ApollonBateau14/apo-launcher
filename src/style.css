@@ -208,6 +208,16 @@ html {
      Play/Paramètres doivent tenir dans la hauteur fixe du panneau sans
      scroller (voir .server-list plus bas pour Play, qui dépassait sinon). */
 }
+/* Exception : Mods/Shaders/Texture packs a bien plus de contenu que les
+   autres écrans (3 listes) — scroll interne, molette seulement (pas de
+   piste visible, cohérent avec les autres scrolls "discrets" de l'appli). */
+#screen-addons.active {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+#screen-addons.active::-webkit-scrollbar { display: none; }
 
 .panel-title {
   font-size: 12px;
@@ -231,13 +241,56 @@ html {
 .field::placeholder { color: rgba(255,255,255,0.55); }
 .field:focus { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.6); }
 
-/* Le popup déroulant d'un <select> est rendu par l'OS, pas affecté par le
-   fond translucide de .field (d'où le blanc sur blanc) : couleur opaque
-   proche du thème, obligatoire pour que le popup natif la respecte. */
-select.field option {
-  background: #1b1530;
-  color: #fff;
+/* Dropdown maison (voir addModalSelect dans renderer.js) — la popup d'un
+   <select> natif est dessinée par l'OS : fond blanc hors-thème, et pire,
+   débordait carrément de la fenêtre (fenêtre sans bordure, petite taille).
+   position:fixed calculé en JS + habillage ici = reste dans la fenêtre. */
+.dropdown-trigger {
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
+.dropdown-trigger::after {
+  content: '▾';
+  flex-shrink: 0;
+  font-size: 11px;
+  opacity: 0.6;
+}
+.dropdown-list {
+  position: fixed;
+  z-index: 200;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #1b1530;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  padding: 6px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.dropdown-item {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #fff;
+  cursor: pointer;
+}
+.dropdown-item:hover { background: rgba(230,180,80,0.25); }
+.dropdown-item.selected { background: rgba(230,180,80,0.35); font-weight: 600; }
+.dropdown-list::-webkit-scrollbar { width: 6px; }
+.dropdown-list::-webkit-scrollbar-track { background: transparent; }
+.dropdown-list::-webkit-scrollbar-thumb {
+  background-color: rgba(230,180,80,0.4);
+  border-radius: 6px;
+}
+.dropdown-list::-webkit-scrollbar-thumb:hover { background: rgba(230,180,80,0.65); }
 
 .hint {
   font-size: 11px;
@@ -271,10 +324,9 @@ select.field option {
   flex-direction: column;
   gap: 8px;
   margin-bottom: 16px;
-  /* Réduit (était 160px) : avec 3+ serveurs, 160px poussait le reste de
-     l'écran (statut, bouton Jouer) hors du panneau — la liste scrolle
-     elle-même en interne plutôt que de faire déborder tout l'écran. */
-  max-height: 112px;
+  /* Le bouton Jouer est passé dans .server-status-row (à côté du statut,
+     plus de ligne de boutons séparée) — l'espace récupéré revient ici. */
+  max-height: 180px;
   overflow-y: auto;
 }
 
@@ -323,8 +375,29 @@ select.field option {
   flex-direction: column;
   min-width: 0;
 }
-.server-card .server-name { font-size: 14px; font-weight: 600; }
+.server-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.server-card .server-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .server-card .server-desc { font-size: 11px; opacity: 0.65; margin-top: 2px; }
+.server-mode-badge {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.server-mode-badge.server-mode-offline {
+  color: rgba(120,220,140,1);
+  background: rgba(120,220,140,0.15);
+  border-color: rgba(120,220,140,0.4);
+}
+.server-mode-badge.server-mode-online {
+  color: rgba(230,180,80,1);
+  background: rgba(230,180,80,0.15);
+  border-color: rgba(230,180,80,0.4);
+}
 
 .server-edit-btn {
   flex-shrink: 0;
@@ -381,25 +454,32 @@ select.field option {
      2-3 lignes). Le modal doit s'adapter à son contenu, pas à un écran
      fixe : hauteur auto, plafonnée pour les cas vraiment longs. */
   height: auto;
+  /* .modal-overlay est flex (align-items:center) — sans ça, un enfant flex
+     garde par défaut min-height:auto (= la hauteur de son contenu), ce qui
+     annule max-height/overflow : le contenu déborde bel et bien, mais la
+     scrollbar (calculée, elle, sur la hauteur "prévue") ressort plus longue
+     que la boîte visible. Classique piège flexbox. */
+  min-height: 0;
   max-height: 80vh;
   overflow-y: auto;
+  /* Scroll à la molette toujours actif, juste sans piste/curseur visible —
+     pas besoin d'un indicateur visuel dans un petit modal. */
+  scrollbar-width: none;
 }
+.modal::-webkit-scrollbar { display: none; }
 
 /* Scrollbar fine façon liquid glass (doré, même thème que le reste de
    l'appli) au lieu du rendu Windows par défaut. */
-.modal::-webkit-scrollbar,
 .skin-editor-right::-webkit-scrollbar {
   width: 8px;
 }
 .server-list::-webkit-scrollbar {
   width: 5px; /* plus fine que les autres — discrète à côté des cartes serveur */
 }
-.modal::-webkit-scrollbar-track,
 .server-list::-webkit-scrollbar-track,
 .skin-editor-right::-webkit-scrollbar-track {
   background: transparent;
 }
-.modal::-webkit-scrollbar-thumb,
 .server-list::-webkit-scrollbar-thumb,
 .skin-editor-right::-webkit-scrollbar-thumb {
   /* Pas de border-clip transparent ici : combiné à border-radius, Chromium
@@ -409,7 +489,6 @@ select.field option {
   background-color: rgba(230,180,80,0.4);
   border-radius: 8px;
 }
-.modal::-webkit-scrollbar-thumb:hover,
 .server-list::-webkit-scrollbar-thumb:hover,
 .skin-editor-right::-webkit-scrollbar-thumb:hover {
   background: rgba(230,180,80,0.65);
@@ -473,20 +552,19 @@ select.field option {
 
 .server-status-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-top: 20px;
 }
-.addon-buttons {
+.play-btn-group {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   flex-shrink: 0;
 }
-.addon-btn {
-  padding: 6px 14px;
-  font-size: 12px;
+.play-btn-group .btn {
   flex: none;
+  padding: 10px 20px;
 }
 
 .checkbox-row {
@@ -503,6 +581,48 @@ select.field option {
   cursor: pointer;
 }
 .checkbox-row span { font-size: 14px; }
+.addon-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* Switch segmenté maison (ex: Fabulously Optimized vs Fresh Animations) —
+   pas de radio natif (rond bleu de l'OS, hors thème). */
+.segmented-switch {
+  display: flex;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 14px;
+  padding: 4px;
+  gap: 4px;
+  margin: 8px 0;
+}
+.segmented-switch-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(255,255,255,0.65);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.segmented-switch-btn:hover { background: rgba(255,255,255,0.1); }
+.segmented-switch-btn.active {
+  background: rgba(230,180,80,0.9);
+  color: #1b1530;
+  font-weight: 600;
+}
+.segmented-switch-btn .addon-icon { width: 20px; height: 20px; }
 
 /* Icône "joueur" en bas à gauche — c'est en fait l'aperçu 3D du skin
    actuel en permanence (skinview3d, deuxième instance synchronisée avec
@@ -532,7 +652,7 @@ select.field option {
 .skin-editor-overlay {
   display: none;
   position: fixed;
-  top: 28px; /* même hauteur que .titlebar, juste en-dessous */
+  top: 35px; /* même hauteur que .titlebar, juste en-dessous */
   left: 0;
   right: 0;
   bottom: 0;
@@ -551,21 +671,25 @@ select.field option {
   align-items: stretch;
 }
 .skin-editor-overlay.active { display: flex; }
+/* Bouton fermer partagé (éditeur de skin + navigateur NameMC) — pilule
+   rectangulaire avec texte, dans le thème de l'appli (plus de rond avec
+   juste une croix, ça dénotait). */
+.overlay-close-btn {
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.overlay-close-btn:hover { background: rgba(220,60,60,0.35); }
 .skin-editor-close {
   position: absolute;
   top: 18px;
   right: 22px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.1);
-  color: #fff;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s ease;
 }
-.skin-editor-close:hover { background: rgba(220,60,60,0.35); }
 .skin-editor-left {
   flex: 0 0 34%;
   display: flex;
@@ -660,7 +784,7 @@ select.field option {
   display: none;
   flex-direction: column;
   position: fixed;
-  top: 28px;
+  top: 35px; /* même hauteur que .titlebar, juste en-dessous */
   left: 0;
   right: 0;
   bottom: 0;
@@ -706,17 +830,6 @@ select.field option {
   border-color: rgba(230,180,80,0.8);
 }
 .namemc-nav-btn:disabled { opacity: 0.35; cursor: default; }
-.namemc-close-btn {
-  padding: 6px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.1);
-  color: #fff;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-.namemc-close-btn:hover { background: rgba(220,60,60,0.35); }
 .namemc-overlay #namemc-webview {
   flex: 1;
   width: 100%;
