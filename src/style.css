@@ -650,10 +650,16 @@ select.field option {
   background: rgba(0,0,0,0.25);
   cursor: pointer;
   flex-shrink: 0;
-  border: 2px solid transparent;
-  transition: border-color 0.15s ease;
+  /* outline plutôt que border : avec le box-sizing:border-box global, une
+     vraie bordure grignote 2px de chaque côté sur la fenêtre de 40x40,
+     donc le crop du visage ne montrait plus tout à fait les 8x8 px source
+     attendus (tête légèrement décalée/rognée en bas à droite) — l'outline
+     ne compte pas dans la taille de la boîte, la fenêtre reste 40x40 pile. */
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  transition: outline-color 0.15s ease;
 }
-.skin-gallery-item:hover { border-color: rgba(230,180,80,0.7); }
+.skin-gallery-item:hover { outline-color: rgba(230,180,80,0.7); }
 /* Crop pixel-perfect du visage, deux couches empilées (échelle x5 : 40px
    d'affichage / 8px de source, texture entière -> 320px) :
    - base (8,8 dans la source) -> 40,40 dans l'image agrandie
