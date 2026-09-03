@@ -569,7 +569,7 @@ function makeSkinViewer(canvasId, width, height) {
     pixelRatio: Math.max(window.devicePixelRatio || 1, 2) // plus net, canvas petit sinon flou
   });
   viewer.animation = new skinview3d.IdleAnimation();
-  viewer.zoom = 0.65; // marge suffisante pour ne jamais rogner tête/pieds
+  viewer.zoom = 0.55; // marge suffisante pour ne jamais rogner tête/pieds
   viewer.controls.enableZoom = false;
   viewer.controls.enablePan = false;
   viewer.controls.minPolarAngle = Math.PI / 2;
@@ -577,7 +577,7 @@ function makeSkinViewer(canvasId, width, height) {
   // Vue 3/4 par défaut (comme le menu de perso du jeu) plutôt que pile de
   // face — tourne le PERSONNAGE, pas la caméra, donc le drag à la souris
   // continue de fonctionner normalement à partir de cet angle de départ.
-  viewer.playerObject.rotation.y = -Math.PI / 5.5;
+  viewer.playerObject.rotation.y = Math.PI / 5.5;
   return viewer;
 }
 const skinViewer = makeSkinViewer('skin-3d-canvas', 240, 330);
@@ -671,10 +671,17 @@ async function loadSkinFavorites() {
     item.className = 'skin-gallery-item';
     item.title = fav.name;
 
-    const img = document.createElement('img');
-    img.src = fav.skinUrl;
-    img.alt = fav.name;
-    item.appendChild(img);
+    const imgBase = document.createElement('img');
+    imgBase.className = 'skin-gallery-face-base';
+    imgBase.src = fav.skinUrl;
+    imgBase.alt = fav.name;
+    item.appendChild(imgBase);
+
+    const imgHat = document.createElement('img');
+    imgHat.className = 'skin-gallery-face-hat';
+    imgHat.src = fav.skinUrl;
+    imgHat.alt = '';
+    item.appendChild(imgHat);
 
     item.addEventListener('click', () => {
       foundSkin = fav;

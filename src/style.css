@@ -654,17 +654,24 @@ select.field option {
   transition: border-color 0.15s ease;
 }
 .skin-gallery-item:hover { border-color: rgba(230,180,80,0.7); }
+/* Crop pixel-perfect du visage, deux couches empilées (échelle x5 : 40px
+   d'affichage / 8px de source, texture entière -> 320px) :
+   - base (8,8 dans la source) -> 40,40 dans l'image agrandie
+   - "chapeau" (40,8 dans la source, cheveux/casquette qui dépassent du
+     visage de base sur beaucoup de skins) -> 200,40
+   Sans la couche chapeau, tout ce qui dépasse (cheveux longs, capuche...)
+   semblait "coupé" — normal, on ne la dessinait pas du tout. */
 .skin-gallery-item img {
-  /* Crop pixel-perfect du visage (8x8), même technique que l'aperçu 3D
-     de secours : échelle x5 (40px / 8px), donc texture entière -> 320px,
-     visage (à 8,8 dans l'original) -> 40,40 dans l'image agrandie. */
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 320px;
   height: auto;
-  margin-left: -40px;
-  margin-top: -40px;
-  image-rendering: pixelated;
   pointer-events: none;
+  image-rendering: pixelated;
 }
+.skin-gallery-face-base { margin-left: -40px; margin-top: -40px; }
+.skin-gallery-face-hat { margin-left: -200px; margin-top: -40px; }
 
 /* Ticker actualités Minecraft — remplit le vide sous le formulaire de
    connexion, défile en boucle infinie (contenu dupliqué x2, translateY à
