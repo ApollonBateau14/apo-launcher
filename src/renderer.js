@@ -721,6 +721,29 @@ document.getElementById('namemc-close').addEventListener('click', () => {
   namemcOverlay.classList.remove('active');
 });
 
+// Navigation précédent/suivant — boutons + raccourci Alt+Flèches (celui du
+// vrai navigateur ne marche pas ici : le <webview> tourne dans son propre
+// processus invité, il faut écouter ses propres événements clavier).
+const namemcBackBtn = document.getElementById('namemc-back');
+const namemcForwardBtn = document.getElementById('namemc-forward');
+function updateNamemcNavButtons() {
+  namemcBackBtn.disabled = !namemcWebview.canGoBack();
+  namemcForwardBtn.disabled = !namemcWebview.canGoForward();
+}
+namemcBackBtn.addEventListener('click', () => {
+  if (namemcWebview.canGoBack()) namemcWebview.goBack();
+});
+namemcForwardBtn.addEventListener('click', () => {
+  if (namemcWebview.canGoForward()) namemcWebview.goForward();
+});
+namemcWebview.addEventListener('did-navigate', updateNamemcNavButtons);
+namemcWebview.addEventListener('did-navigate-in-page', updateNamemcNavButtons);
+namemcWebview.addEventListener('before-input-event', (event, input) => {
+  if (input.type !== 'keyDown' || !input.alt) return;
+  if (input.key === 'ArrowLeft' && namemcWebview.canGoBack()) namemcWebview.goBack();
+  else if (input.key === 'ArrowRight' && namemcWebview.canGoForward()) namemcWebview.goForward();
+});
+
 // --- Écran Paramètres ---
 const ramSlider = document.getElementById('ram-slider');
 ramSlider.addEventListener('input', () => {

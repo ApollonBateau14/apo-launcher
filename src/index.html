@@ -188,7 +188,11 @@
        comme un onglet de navigateur classique). -->
   <div class="namemc-overlay" id="namemc-overlay">
     <div class="namemc-topbar">
-      <span data-i18n="skin.browseNamemc">Chercher un skin sur NameMC</span>
+      <div class="namemc-topbar-left">
+        <button class="namemc-nav-btn" id="namemc-back" data-i18n-title="skin.namemcBack" title="Précédent" disabled>‹</button>
+        <button class="namemc-nav-btn" id="namemc-forward" data-i18n-title="skin.namemcForward" title="Suivant" disabled>›</button>
+        <span data-i18n="skin.browseNamemc">Chercher un skin sur NameMC</span>
+      </div>
       <button class="namemc-close-btn" id="namemc-close" data-i18n="changelog.close">Fermer</button>
     </div>
     <!-- Pas de src ici : chargé au premier clic depuis renderer.js, pour
