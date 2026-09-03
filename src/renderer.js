@@ -710,7 +710,11 @@ document.getElementById('skin-editor-close').addEventListener('click', () => {
 // --- Navigateur NameMC intégré (juste pour parcourir/copier un pseudo
 // soi-même, on n'affiche que leur site tel quel dans un <webview>) ---
 const namemcOverlay = document.getElementById('namemc-overlay');
+const namemcWebview = document.getElementById('namemc-webview');
 document.getElementById('skin-namemc-btn').addEventListener('click', () => {
+  // Chargé seulement au premier clic (laisse le temps à uBlock Origin de
+  // se charger côté main process avant la toute première visite).
+  if (!namemcWebview.src) namemcWebview.src = 'https://fr.namemc.com/minecraft-skins';
   namemcOverlay.classList.add('active');
 });
 document.getElementById('namemc-close').addEventListener('click', () => {

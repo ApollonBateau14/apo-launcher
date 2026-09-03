@@ -13,6 +13,7 @@ const { getCompatibleCatalog } = require('./src/lib/addons');
 const autoUpdate = require('./src/lib/autoUpdate');
 const msAuth = require('./src/lib/msAuth');
 const skins = require('./src/lib/skins');
+const { ensureUblockLoaded } = require('./src/lib/adblock');
 
 // Métadonnées des serveurs : pas sensible, ça reste dans le code (public sur GitHub).
 // Complète/adapte cette liste avec tes vrais serveurs et leurs manifests GitHub.
@@ -151,6 +152,10 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
   discordPresence.connect();
+  // Pas de "await" : ne doit jamais retarder l'affichage de la fenêtre.
+  // Prêt en quelques secondes (premier lancement) ou instantané (déjà en
+  // cache) bien avant que le joueur clique sur le bouton NameMC.
+  ensureUblockLoaded();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

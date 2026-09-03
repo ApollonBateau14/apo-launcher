@@ -191,7 +191,10 @@
       <span data-i18n="skin.browseNamemc">Chercher un skin sur NameMC</span>
       <button class="namemc-close-btn" id="namemc-close" data-i18n="changelog.close">Fermer</button>
     </div>
-    <webview id="namemc-webview" src="https://fr.namemc.com/minecraft-skins" allowpopups></webview>
+    <!-- Pas de src ici : chargé au premier clic depuis renderer.js, pour
+         laisser le temps à uBlock Origin de se charger dans la session
+         (voir main.js/ensureUblockLoaded) avant la toute première visite. -->
+    <webview id="namemc-webview" allowpopups></webview>
   </div>
 
   <!-- Emoji drapeaux non fiables sous Windows (rendus en texte "GB"/"FR") —
