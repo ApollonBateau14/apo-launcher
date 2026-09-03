@@ -707,6 +707,16 @@ document.getElementById('skin-editor-close').addEventListener('click', () => {
   skinEditorOverlay.classList.remove('active');
 });
 
+// --- Navigateur NameMC intégré (juste pour parcourir/copier un pseudo
+// soi-même, on n'affiche que leur site tel quel dans un <webview>) ---
+const namemcOverlay = document.getElementById('namemc-overlay');
+document.getElementById('skin-namemc-btn').addEventListener('click', () => {
+  namemcOverlay.classList.add('active');
+});
+document.getElementById('namemc-close').addEventListener('click', () => {
+  namemcOverlay.classList.remove('active');
+});
+
 // --- Écran Paramètres ---
 const ramSlider = document.getElementById('ram-slider');
 ramSlider.addEventListener('input', () => {

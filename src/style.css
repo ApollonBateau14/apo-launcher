@@ -625,7 +625,76 @@ select.field option {
   overflow-y: auto;
   padding-right: 8px;
 }
-.skin-3d-controls { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.skin-3d-controls { display: flex; flex-direction: row; align-items: center; gap: 8px; margin-top: 10px; }
+.skin-3d-controls .field { width: auto; flex: 1; min-width: 0; }
+.skin-namemc-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.skin-namemc-btn svg { width: 19px; height: 19px; }
+.skin-namemc-btn:hover {
+  border-color: rgba(230,180,80,0.8);
+  background: rgba(230,180,80,0.25);
+}
+
+/* Navigateur NameMC intégré — même habillage que l'éditeur de skin, un
+   cran au-dessus (par-dessus) puisqu'il s'ouvre depuis là. Le <webview>
+   affiche leur site tel quel, aucun contenu n'est copié/hébergé par nous. */
+.namemc-overlay {
+  display: none;
+  flex-direction: column;
+  position: fixed;
+  top: 28px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
+  background: rgba(10,8,20,0.6);
+  z-index: 50;
+}
+.namemc-overlay.active { display: flex; }
+/* Le <webview> Electron peut ignorer le z-index et se dessiner par-dessus
+   le reste du DOM (limitation connue) — plutôt que de superposer un
+   bouton fermer sur lui (invisible/inatteignable), on lui réserve une
+   vraie barre au-dessus, jamais recouverte. */
+.namemc-topbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(20,16,30,0.9);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+.namemc-close-btn {
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.namemc-close-btn:hover { background: rgba(220,60,60,0.35); }
+.namemc-overlay #namemc-webview {
+  flex: 1;
+  width: 100%;
+  border: none;
+}
 
 .skin-gallery {
   display: flex;

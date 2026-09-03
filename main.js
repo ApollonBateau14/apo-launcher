@@ -138,7 +138,10 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Nécessaire pour le <webview> qui affiche NameMC dans son propre
+      // menu (processus invité séparé, pas d'accès node/preload côté site).
+      webviewTag: true
     }
   });
 
