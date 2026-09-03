@@ -490,17 +490,42 @@ ipcMain.handle('get-server-favicon', async (_e, serverId) => {
 
 // ---- IPC: mode du serveur (crack/offline-mode ou premium/online-mode) ----
 // Pas exposé par le ping standard — voir src/lib/serverPing.js#checkOnlineMode.
+// Cette sonde ouvre une vraie connexion "login" (visible dans les logs du
+// serveur, genre anti-bot pouvant flaguer l'IP si répété) — résultat mis en
+// cache sur disque (survit aux redémarrages de l'appli), clé = ip:port
+// (pas l'id du serveur : une IP modifiée redevient naturellement "jamais
+// sondée" sans logique d'invalidation à part). Un mode online/offline ne
+// change quasiment jamais → 24h de cache ; un échec (timeout, serveur
+// injoignable…) peut être transitoire → 10 min seulement, pour retenter
+// plus vite sans non plus spammer à chaque affichage.
+const ONLINE_MODE_CACHE_OK_MS = 24 * 60 * 60 * 1000;
+const ONLINE_MODE_CACHE_FAIL_MS = 10 * 60 * 1000;
+
 ipcMain.handle('get-server-online-mode', async (_e, serverId) => {
   const servers = store.get('servers', []);
   const server = servers.find((s) => s.id === serverId);
   if (!server || !server.ip) return null;
+
+  const cacheKey = `${server.ip}:${server.port}`;
+  const cache = store.get('onlineModeCache', {});
+  const cached = cache[cacheKey];
+  if (cached) {
+    const maxAge = cached.mode ? ONLINE_MODE_CACHE_OK_MS : ONLINE_MODE_CACHE_FAIL_MS;
+    if (Date.now() - cached.ts < maxAge) return cached.mode;
+  }
+
+  let mode = null;
   try {
     const status = await pingServer(server.ip, server.port);
-    if (!status.online || !status.protocol) return null;
-    return await checkOnlineMode(server.ip, server.port, status.protocol);
+    if (status.online && status.protocol) {
+      mode = await checkOnlineMode(server.ip, server.port, status.protocol);
+    }
   } catch {
-    return null;
+    mode = null;
   }
+
+  store.set('onlineModeCache', { ...cache, [cacheKey]: { mode, ts: Date.now() } });
+  return mode;
 });
 
 // ---- IPC: liste des versions Minecraft "release" (manifest Mojang) ----
