@@ -205,7 +205,7 @@ function probeLoginMode(host, port, protocolVersion, timeoutMs) {
 
     socket.connect(port, host, () => {
       const handshake = buildLoginHandshakePacket(host, port, protocolVersion);
-      const loginStart = buildLoginStartPacket('ApoLauncherCheck');
+      const loginStart = buildLoginStartPacket('PingCheckServer');
       socket.write(Buffer.concat([handshake, loginStart]));
     });
 
