@@ -561,11 +561,45 @@ select.field option {
 }
 .skin-editor-close:hover { background: rgba(220,60,60,0.35); }
 .skin-editor-left {
+  position: relative;
   flex: 0 0 34%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+/* Icônes flottantes en haut à droite de l'aperçu 3D : étoile (favori) +
+   flèche vers le bas (utiliser ce skin) — remplacent le bouton texte. */
+.skin-action-icon {
+  position: absolute;
+  top: 14px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(20,16,30,0.5);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.skin-action-icon svg { width: 17px; height: 17px; }
+.skin-favorite-btn { right: 56px; }
+.skin-apply-btn { right: 14px; }
+.skin-favorite-btn:hover, .skin-apply-btn:hover {
+  border-color: rgba(230,180,80,0.8);
+  background: rgba(230,180,80,0.25);
+}
+/* Étoile pleine (dorée) quand le skin affiché est déjà en favori. */
+.skin-favorite-btn.active {
+  color: rgba(230,180,80,1);
+  border-color: rgba(230,180,80,0.8);
+}
+.skin-favorite-btn.active svg { fill: currentColor; }
+.skin-favorite-btn svg { fill: none; stroke: currentColor; stroke-width: 1.5; }
 #skin-3d-canvas {
   max-width: 100%;
   max-height: 100%;

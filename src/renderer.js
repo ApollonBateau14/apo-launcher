@@ -592,8 +592,19 @@ async function loadCurrentSkin() {
 loadCurrentSkin();
 
 let foundSkin = null;
+let favoritedNames = new Set();
 
-document.getElementById('skin-search-btn').addEventListener('click', async () => {
+function updateFavoriteButtonState() {
+  const favBtn = document.getElementById('skin-favorite-btn');
+  if (!foundSkin?.name) {
+    favBtn.hidden = true;
+    return;
+  }
+  favBtn.hidden = false;
+  favBtn.classList.toggle('active', favoritedNames.has(foundSkin.name.toLowerCase()));
+}
+
+async function runSkinSearch() {
   const username = document.getElementById('skin-search-input').value.trim();
   const statusEl = document.getElementById('skin-status');
   const applyBtn = document.getElementById('skin-apply-btn');
@@ -601,6 +612,7 @@ document.getElementById('skin-search-btn').addEventListener('click', async () =>
 
   applyBtn.hidden = true;
   foundSkin = null;
+  updateFavoriteButtonState();
   statusEl.textContent = window.i18n.t('skin.searching');
 
   const result = await window.api.lookupSkin(username);
@@ -613,7 +625,13 @@ document.getElementById('skin-search-btn').addEventListener('click', async () =>
     foundSkin = result;
     loadSkinEverywhere(result.skinUrl); // aperçu 3D immédiat, avant même d'appliquer
     applyBtn.hidden = false;
+    updateFavoriteButtonState();
   }
+}
+
+// Entrée dans le champ = recherche, plus besoin d'un bouton "Chercher" séparé.
+document.getElementById('skin-search-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') runSkinSearch();
 });
 
 document.getElementById('skin-apply-btn').addEventListener('click', async () => {
@@ -628,42 +646,51 @@ document.getElementById('skin-apply-btn').addEventListener('click', async () => 
   statusEl.textContent = window.i18n.t(account ? 'skin.applied' : 'skin.appliedOfflineNote');
 });
 
-// --- Galeries de streamers (curées à la main, voir skinCategories.js) ---
-function renderSkinGallery(containerEl, players) {
-  containerEl.innerHTML = '';
-  players.forEach((player) => {
+document.getElementById('skin-favorite-btn').addEventListener('click', async () => {
+  if (!foundSkin?.name) return;
+  const result = await window.api.toggleSkinFavorite(foundSkin.name);
+  if (result.favorited) favoritedNames.add(foundSkin.name.toLowerCase());
+  else favoritedNames.delete(foundSkin.name.toLowerCase());
+  updateFavoriteButtonState();
+  loadSkinFavorites();
+});
+
+// --- Favoris (recherches sauvegardées par le joueur lui-même) ---
+async function loadSkinFavorites() {
+  const grid = document.getElementById('skin-favorites-grid');
+  grid.innerHTML = '';
+  const favorites = await window.api.getSkinFavorites();
+  favoritedNames = new Set(favorites.map((f) => f.name.toLowerCase()));
+
+  favorites.forEach((fav) => {
     const item = document.createElement('div');
     item.className = 'skin-gallery-item';
-    item.title = player.name;
+    item.title = fav.name;
 
     const img = document.createElement('img');
-    img.src = player.skinUrl;
-    img.alt = player.name;
+    img.src = fav.skinUrl;
+    img.alt = fav.name;
     item.appendChild(img);
 
     item.addEventListener('click', () => {
-      foundSkin = player;
-      loadSkinEverywhere(player.skinUrl);
+      foundSkin = fav;
+      loadSkinEverywhere(fav.skinUrl);
       document.getElementById('skin-apply-btn').hidden = false;
       document.getElementById('skin-status').textContent = '';
+      updateFavoriteButtonState();
     });
 
-    containerEl.appendChild(item);
+    grid.appendChild(item);
   });
+  updateFavoriteButtonState();
 }
-
-async function loadStreamerGalleries() {
-  const { en, fr } = await window.api.getStreamerSkins();
-  renderSkinGallery(document.getElementById('skin-gallery-fr'), fr);
-  renderSkinGallery(document.getElementById('skin-gallery-en'), en);
-}
-loadStreamerGalleries();
+loadSkinFavorites();
 
 // --- Éditeur de skin plein écran : ouverture/fermeture ---
 const skinEditorOverlay = document.getElementById('skin-editor-overlay');
 document.getElementById('skin-fab').addEventListener('click', () => {
   skinEditorOverlay.classList.add('active');
-  loadStreamerGalleries(); // toujours à jour (skin actuel des streamers) à l'ouverture
+  loadSkinFavorites();
 });
 document.getElementById('skin-editor-close').addEventListener('click', () => {
   skinEditorOverlay.classList.remove('active');

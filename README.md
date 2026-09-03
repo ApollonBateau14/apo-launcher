@@ -32,9 +32,10 @@ npm start
   personnalisation du jeu — face à l'écran par défaut, tournable à la souris gauche/droite uniquement).
   Connecté avec Microsoft : applique vraiment le skin trouvé sur le compte (visible par tout le monde en jeu).
   En offline : aperçu local uniquement dans l'appli, **pas visible par les autres joueurs en jeu** (limitation
-  du mode offline, voir "reste à faire"). Galeries **Streamers FR/EN** : sélection curée à la main de ~10+10
-  vrais comptes de streamers/YouTubers connus (`src/lib/skinCategories.js`), skin à jour à chaque affichage —
-  pas de galerie "populaire"/anime (pas de source légitime pour l'un, droit d'auteur pour l'autre)
+  du mode offline, voir "reste à faire"). Entrée dans le champ = recherche. Icônes flottantes sur l'aperçu 3D :
+  étoile (favori) + flèche (appliquer). **Favoris** : le joueur sauvegarde lui-même les pseudos qui
+  l'intéressent (grille sous le champ de recherche) — pas de galerie "populaire"/streamers/anime pré-remplie
+  par nous (pas de source légitime pour un vrai "populaire", droit d'auteur pour des persos fictifs)
 
 **Serveurs**
 - Multi-serveurs : chaque serveur a sa version MC, son loader, son `manifestUrl` de modpack, son icône

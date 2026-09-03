@@ -13,7 +13,6 @@ const { getCompatibleCatalog } = require('./src/lib/addons');
 const autoUpdate = require('./src/lib/autoUpdate');
 const msAuth = require('./src/lib/msAuth');
 const skins = require('./src/lib/skins');
-const { STREAMERS_EN, STREAMERS_FR } = require('./src/lib/skinCategories');
 
 // Métadonnées des serveurs : pas sensible, ça reste dans le code (public sur GitHub).
 // Complète/adapte cette liste avec tes vrais serveurs et leurs manifests GitHub.
@@ -247,23 +246,30 @@ ipcMain.handle('apply-skin', async (_e, skinUrl) => {
   return { success: true };
 });
 
-// Galeries "Streamers" curées à la main (voir skinCategories.js) — mêmes
-// comptes à chaque appel, mais relookés à chaque fois (skin/pseudo à jour,
-// et ça filtre proprement un compte qui aurait disparu/été renommé).
-ipcMain.handle('get-streamer-skins', async () => {
-  const lookupAll = async (usernames) => {
-    const results = await Promise.all(usernames.map(async (name) => {
-      try {
-        const result = await skins.lookupSkinByUsername(name);
-        return result?.skinUrl ? result : null;
-      } catch {
-        return null;
-      }
-    }));
-    return results.filter(Boolean);
-  };
-  const [en, fr] = await Promise.all([lookupAll(STREAMERS_EN), lookupAll(STREAMERS_FR)]);
-  return { en, fr };
+// ---- IPC: favoris skin (recherches sauvegardées par le joueur) ----
+// Ne stocke que le pseudo — le skin est relookup à chaque affichage
+// (toujours à jour, et filtre proprement un compte renommé/disparu).
+ipcMain.handle('get-skin-favorites', async () => {
+  const names = store.get('skinFavorites', []);
+  const results = await Promise.all(names.map(async (name) => {
+    try {
+      const result = await skins.lookupSkinByUsername(name);
+      return result?.skinUrl ? result : null;
+    } catch {
+      return null;
+    }
+  }));
+  return results.filter(Boolean);
+});
+
+ipcMain.handle('toggle-skin-favorite', (_e, name) => {
+  const list = store.get('skinFavorites', []);
+  const exists = list.some((n) => n.toLowerCase() === name.toLowerCase());
+  const updated = exists
+    ? list.filter((n) => n.toLowerCase() !== name.toLowerCase())
+    : [...list, name];
+  store.set('skinFavorites', updated);
+  return { favorited: !exists };
 });
 
 ipcMain.handle('set-ram', (_e, ramMb) => {
