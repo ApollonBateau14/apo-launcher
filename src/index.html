@@ -157,13 +157,15 @@
   <div class="skin-editor-overlay" id="skin-editor-overlay">
     <button class="skin-editor-close" id="skin-editor-close">✕</button>
     <div class="skin-editor-left">
-      <canvas id="skin-3d-canvas" width="320" height="440"></canvas>
-      <button class="skin-action-icon skin-favorite-btn" id="skin-favorite-btn" data-i18n-title="skin.favorite" title="Favori" hidden>
-        <svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9-6.3 3.9 1.7-7-5.4-4.7 7.1-.6z"/></svg>
-      </button>
-      <button class="skin-action-icon skin-apply-btn" id="skin-apply-btn" data-i18n-title="skin.apply" title="Utiliser ce skin" hidden>
-        <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 19h16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
+      <div class="skin-preview-frame">
+        <canvas id="skin-3d-canvas" width="240" height="330"></canvas>
+        <button class="skin-action-icon skin-favorite-btn" id="skin-favorite-btn" data-i18n-title="skin.favorite" title="Favori" hidden>
+          <svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.9-6.3 3.9 1.7-7-5.4-4.7 7.1-.6z"/></svg>
+        </button>
+        <button class="skin-action-icon skin-apply-btn" id="skin-apply-btn" data-i18n-title="skin.apply" title="Utiliser ce skin" hidden>
+          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 19h16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
     </div>
     <div class="skin-editor-right">
       <p class="panel-title" data-i18n="skin.title">Skin</p>

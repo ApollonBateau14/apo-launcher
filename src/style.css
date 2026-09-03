@@ -561,11 +561,21 @@ select.field option {
 }
 .skin-editor-close:hover { background: rgba(220,60,60,0.35); }
 .skin-editor-left {
-  position: relative;
   flex: 0 0 34%;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden; /* le canvas ne doit jamais déborder de sa colonne */
+}
+/* Enrobe le canvas au plus près (pas toute la colonne .skin-editor-left,
+   souvent plus large/haute que le rendu réel) — les icônes se positionnent
+   par rapport à CE cadre, pour rester bien à l'intérieur du visuel du skin
+   au lieu de flotter au-dessus/à côté. */
+.skin-preview-frame {
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+  line-height: 0; /* évite l'espace fantôme sous le canvas (inline par défaut) */
 }
 /* Icônes flottantes en haut à droite de l'aperçu 3D : étoile (favori) +
    flèche vers le bas (utiliser ce skin) — remplacent le bouton texte. */
@@ -601,6 +611,7 @@ select.field option {
 .skin-favorite-btn.active svg { fill: currentColor; }
 .skin-favorite-btn svg { fill: none; stroke: currentColor; stroke-width: 1.5; }
 #skin-3d-canvas {
+  display: block;
   max-width: 100%;
   max-height: 100%;
   border-radius: 16px;

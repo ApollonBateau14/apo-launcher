@@ -569,14 +569,18 @@ function makeSkinViewer(canvasId, width, height) {
     pixelRatio: Math.max(window.devicePixelRatio || 1, 2) // plus net, canvas petit sinon flou
   });
   viewer.animation = new skinview3d.IdleAnimation();
-  viewer.zoom = 0.75;
+  viewer.zoom = 0.65; // marge suffisante pour ne jamais rogner tête/pieds
   viewer.controls.enableZoom = false;
   viewer.controls.enablePan = false;
   viewer.controls.minPolarAngle = Math.PI / 2;
   viewer.controls.maxPolarAngle = Math.PI / 2;
+  // Vue 3/4 par défaut (comme le menu de perso du jeu) plutôt que pile de
+  // face — tourne le PERSONNAGE, pas la caméra, donc le drag à la souris
+  // continue de fonctionner normalement à partir de cet angle de départ.
+  viewer.playerObject.rotation.y = -Math.PI / 5.5;
   return viewer;
 }
-const skinViewer = makeSkinViewer('skin-3d-canvas', 320, 440);
+const skinViewer = makeSkinViewer('skin-3d-canvas', 240, 330);
 const skinViewerMini = makeSkinViewer('skin-mini-canvas', 40, 56);
 skinViewerMini.controls.enabled = false; // décoratif seulement, pas de drag sur l'icône
 
