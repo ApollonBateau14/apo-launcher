@@ -375,6 +375,12 @@ select.field option {
 
 .modal {
   width: 300px;
+  /* .glass-panel impose une hauteur FIXE de 430px (pour Connexion/Play/
+     Paramètres) — le modal la récupère aussi vu qu'il porte les deux
+     classes, d'où le grand vide sous un contenu court (ex: changelog de
+     2-3 lignes). Le modal doit s'adapter à son contenu, pas à un écran
+     fixe : hauteur auto, plafonnée pour les cas vraiment longs. */
+  height: auto;
   max-height: 80vh;
   overflow-y: auto;
 }

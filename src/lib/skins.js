@@ -4,7 +4,10 @@
 // Minecraft EXACT (pas de "top 5 résultats approchants" façon NameMC),
 // mais 100% robuste et légitime, mêmes endpoints que le launcher officiel.
 
+const fs = require('fs');
+const path = require('path');
 const fetch = require('node-fetch');
+const { app } = require('electron');
 
 async function fetchSkinByUuid(uuid, name) {
   const profileRes = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${uuid}`);
@@ -53,4 +56,59 @@ async function applySkinToMicrosoftAccount(accessToken, skinUrl, variant = 'clas
   return res.json();
 }
 
-module.exports = { lookupSkinByUsername, lookupSkinByUuid, applySkinToMicrosoftAccount };
+// --- Favoris mis en cache localement --------------------------------------
+// Avant : chaque ouverture de l'éditeur de skin refaisait un aller-retour
+// Mojang complet (pseudo -> UUID -> profil -> texture) pour CHAQUE favori,
+// lent avec plusieurs favoris. Maintenant : le PNG est téléchargé une seule
+// fois au moment où on le met en favori, stocké dans userData/skins/
+// favorites/, et supprimé quand on le retire — plus aucun réseau au
+// chargement de la grille, juste une lecture disque.
+
+function getFavoritesDir() {
+  return path.join(app.getPath('userData'), 'skins', 'favorites');
+}
+
+// Relit un PNG mis en cache et le renvoie en data URI (simple à consommer
+// côté renderer, pas de souci de chemin file:// ou de CSP).
+function readFavoritePng(localPath) {
+  try {
+    const buf = fs.readFileSync(localPath);
+    return `data:image/png;base64,${buf.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+// Résout le pseudo puis télécharge le PNG en local. Renvoie null si le
+// pseudo n'existe pas (résultat normal, pas une erreur).
+async function cacheFavoriteSkin(name) {
+  const result = await lookupSkinByUsername(name);
+  if (!result || !result.skinUrl) return null;
+
+  const dir = getFavoritesDir();
+  fs.mkdirSync(dir, { recursive: true });
+  const localPath = path.join(dir, `${result.uuid}.png`);
+
+  const res = await fetch(result.skinUrl);
+  if (!res.ok) throw new Error(`Téléchargement du skin échoué (HTTP ${res.status})`);
+  fs.writeFileSync(localPath, await res.buffer());
+
+  return { name: result.name, uuid: result.uuid, localPath };
+}
+
+function removeFavoriteSkinFile(localPath) {
+  try {
+    fs.unlinkSync(localPath);
+  } catch {
+    // déjà absent / chemin invalide : rien à faire
+  }
+}
+
+module.exports = {
+  lookupSkinByUsername,
+  lookupSkinByUuid,
+  applySkinToMicrosoftAccount,
+  cacheFavoriteSkin,
+  removeFavoriteSkinFile,
+  readFavoritePng
+};

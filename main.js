@@ -257,27 +257,62 @@ ipcMain.handle('apply-skin', async (_e, skinUrl) => {
 // ---- IPC: favoris skin (recherches sauvegardées par le joueur) ----
 // Ne stocke que le pseudo — le skin est relookup à chaque affichage
 // (toujours à jour, et filtre proprement un compte renommé/disparu).
+// Les favoris sont mis en cache localement (voir src/lib/skins.js) — ici on
+// lit juste le disque, jamais de réseau. Migre au passage l'ancien format
+// (juste le pseudo, en string) vers {name, uuid, localPath} au premier
+// chargement rencontré après la mise à jour.
 ipcMain.handle('get-skin-favorites', async () => {
-  const names = store.get('skinFavorites', []);
-  const results = await Promise.all(names.map(async (name) => {
-    try {
-      const result = await skins.lookupSkinByUsername(name);
-      return result?.skinUrl ? result : null;
-    } catch {
-      return null;
+  const list = store.get('skinFavorites', []);
+  const results = [];
+  let changed = false;
+
+  for (const entry of list) {
+    if (typeof entry === 'string') {
+      try {
+        const cached = await skins.cacheFavoriteSkin(entry);
+        if (cached) {
+          results.push({ ...cached, skinUrl: skins.readFavoritePng(cached.localPath) });
+        }
+      } catch {
+        // pseudo introuvable/réseau indisponible : abandonné silencieusement
+      }
+      changed = true;
+      continue;
     }
-  }));
-  return results.filter(Boolean);
+    const skinUrl = skins.readFavoritePng(entry.localPath);
+    if (skinUrl) {
+      results.push({ ...entry, skinUrl });
+    } else {
+      changed = true; // fichier local manquant/corrompu : retiré de la liste
+    }
+  }
+
+  if (changed) {
+    store.set('skinFavorites', results.map(({ name, uuid, localPath }) => ({ name, uuid, localPath })));
+  }
+  return results;
 });
 
-ipcMain.handle('toggle-skin-favorite', (_e, name) => {
+ipcMain.handle('toggle-skin-favorite', async (_e, name) => {
   const list = store.get('skinFavorites', []);
-  const exists = list.some((n) => n.toLowerCase() === name.toLowerCase());
-  const updated = exists
-    ? list.filter((n) => n.toLowerCase() !== name.toLowerCase())
-    : [...list, name];
-  store.set('skinFavorites', updated);
-  return { favorited: !exists };
+  const existingIndex = list.findIndex((entry) => {
+    const entryName = typeof entry === 'string' ? entry : entry.name;
+    return entryName.toLowerCase() === name.toLowerCase();
+  });
+
+  if (existingIndex !== -1) {
+    const entry = list[existingIndex];
+    if (typeof entry === 'object' && entry.localPath) skins.removeFavoriteSkinFile(entry.localPath);
+    list.splice(existingIndex, 1);
+    store.set('skinFavorites', list);
+    return { favorited: false };
+  }
+
+  const cached = await skins.cacheFavoriteSkin(name);
+  if (!cached) return { favorited: false, error: 'not-found' };
+  list.push({ name: cached.name, uuid: cached.uuid, localPath: cached.localPath });
+  store.set('skinFavorites', list);
+  return { favorited: true };
 });
 
 ipcMain.handle('set-ram', (_e, ramMb) => {
