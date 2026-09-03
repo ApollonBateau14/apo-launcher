@@ -179,6 +179,30 @@ function loaderLabel(loader) {
   return loader.charAt(0).toUpperCase() + loader.slice(1); // fabric -> Fabric, forge -> Forge
 }
 
+// Le sondage crack/premium ouvre une vraie connexion (état "login") sur le
+// serveur avec un faux pseudo, visible dans ses logs (déconnexion "not
+// whitelisted") — le refaire à CHAQUE affichage de l'écran Play (l'appli
+// revient dessus très souvent) spammait le serveur pour rien : le mode
+// online/offline d'un serveur ne change quasiment jamais. Mis en cache 15
+// minutes, pareil pour "Optimiser" (juste un appel API Modrinth, mais pas
+// de raison de le refaire à chaque fois non plus).
+const ONLINE_MODE_CACHE_MS = 15 * 60 * 1000;
+const onlineModeCache = new Map(); // serverId -> { mode, ts }
+async function getCachedOnlineMode(serverId) {
+  const cached = onlineModeCache.get(serverId);
+  if (cached && Date.now() - cached.ts < ONLINE_MODE_CACHE_MS) return cached.mode;
+  const mode = await window.api.getServerOnlineMode(serverId);
+  onlineModeCache.set(serverId, { mode, ts: Date.now() });
+  return mode;
+}
+const optimizedCache = new Map(); // serverId -> bool
+async function getCachedOptimized(serverId) {
+  if (optimizedCache.has(serverId)) return optimizedCache.get(serverId);
+  const optimized = await window.api.getServerOptimized(serverId);
+  optimizedCache.set(serverId, optimized);
+  return optimized;
+}
+
 // --- Écran Play : liste des serveurs ---
 async function loadServerList() {
   const servers = await window.api.getServers();
@@ -245,7 +269,7 @@ async function loadServerList() {
     main.appendChild(descEl);
 
     if (server.loader && server.mcVersion) {
-      window.api.getServerOptimized(server.id).then((optimized) => {
+      getCachedOptimized(server.id).then((optimized) => {
         if (optimized) descEl.textContent += ' — Optimiser';
       });
     }
@@ -254,7 +278,7 @@ async function loadServerList() {
     // standard, sonde à part (voir src/lib/serverPing.js) donc en tâche de
     // fond comme le favicon, sans bloquer l'affichage de la carte.
     if (server.ip) {
-      window.api.getServerOnlineMode(server.id).then((mode) => {
+      getCachedOnlineMode(server.id).then((mode) => {
         if (!mode) return; // indéterminé (timeout, offline...) : pas de badge plutôt qu'un badge faux
         const badge = document.createElement('span');
         badge.className = `server-mode-badge server-mode-${mode}`;
@@ -631,6 +655,10 @@ async function openEditServerModal(server) {
       loader: loaderSelect.value,
       mcVersion: versionSelect.value
     });
+    // IP/loader/version potentiellement changés : le cache crack-premium et
+    // "Optimiser" de ce serveur ne vaut plus rien.
+    onlineModeCache.delete(server.id);
+    optimizedCache.delete(server.id);
     closeModal();
     await loadServerList();
     refreshServerStatus();
