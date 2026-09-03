@@ -569,7 +569,7 @@ function makeSkinViewer(canvasId, width, height) {
     pixelRatio: Math.max(window.devicePixelRatio || 1, 2) // plus net, canvas petit sinon flou
   });
   viewer.animation = new skinview3d.IdleAnimation();
-  viewer.zoom = 0.55; // marge suffisante pour ne jamais rogner tête/pieds
+  viewer.zoom = 0.85; // personnage plus grand, remplit la hauteur du cadre
   viewer.controls.enableZoom = false;
   viewer.controls.enablePan = false;
   viewer.controls.minPolarAngle = Math.PI / 2;
