@@ -315,6 +315,7 @@ const modalTitle = document.getElementById('modal-title');
 const modalFields = document.getElementById('modal-fields');
 const modalSaveBtn = document.getElementById('modal-save-btn');
 const modalCancelBtn = document.getElementById('modal-cancel-btn');
+const modalBtnRow = document.getElementById('modal-btn-row');
 
 function closeModal() {
   if (closeOpenDropdown) closeOpenDropdown(); // dropdown custom attaché à <body>, pas à modalFields
@@ -322,11 +323,13 @@ function closeModal() {
   modalFields.innerHTML = '';
   modalSaveBtn.onclick = null;
   // Remet le bouton dans son état par défaut — sinon un modal qui a
-  // personnalisé son texte/visibilité (ex: le changelog, "Fermer" + Annuler
-  // caché) "fuiterait" cet état vers le prochain modal ouvert (édition
-  // serveur, ajout d'ami, etc.), qui a besoin du "Enregistrer" habituel.
+  // personnalisé son texte/visibilité/position (ex: le changelog, "Fermer"
+  // + Annuler caché ; l'édition serveur, Enregistrer déplacé à côté de
+  // Supprimer) "fuiterait" cet état vers le prochain modal ouvert, qui a
+  // besoin du "Enregistrer" habituel à sa place habituelle.
   modalSaveBtn.textContent = window.i18n.t('modal.save');
   modalCancelBtn.hidden = false;
+  modalBtnRow.appendChild(modalSaveBtn); // au cas où déplacé dans modal-fields (édition serveur)
 }
 modalCancelBtn.addEventListener('click', closeModal);
 modalOverlay.addEventListener('click', (e) => {
@@ -489,7 +492,11 @@ function addModalSegmentedGroup(container, items) {
   const row = document.createElement('div');
   row.className = 'segmented-switch';
 
-  let activeId = (items.find((i) => i.checked) || items[0])?.id;
+  // Pas de repli sur items[0] : si rien n'est coché (ex: après "Tout
+  // désactiver"), le groupe doit rester réellement sur "aucun" plutôt que
+  // de retomber sur le premier choix — sinon ça avait l'air de se
+  // réactiver tout seul en rouvrant l'onglet, sans avoir vraiment été coché.
+  let activeId = items.find((i) => i.checked)?.id ?? null;
   const tiles = new Map();
   const proxies = new Map();
 
@@ -644,6 +651,7 @@ async function openEditServerModal(server) {
   // place pour s'ouvrir vers le bas.
   const versionSelect = addModalSelect(window.i18n.t('field.mcVersion'), versions, server.mcVersion);
   const loaderSelect = addModalSelect(window.i18n.t('field.loader'), ['vanilla', 'fabric', 'forge', 'neoforge'], server.loader);
+  const manifestInput = addModalField(window.i18n.t('field.manifestUrl'), { value: server.manifestUrl || '', placeholder: 'fabulously-optimized, .mrpack, ou manifest.json' });
 
   // Pas de popup système (confirm()) — le bouton lui-même se transforme en
   // décompte de 3s avant de devenir cliquable pour de vrai, façon "tiens le
@@ -683,7 +691,15 @@ async function openEditServerModal(server) {
     await loadServerList();
     refreshServerStatus();
   });
-  modalFields.appendChild(deleteBtn);
+  // Pas de bouton Annuler ici (cliquer en dehors du modal ferme déjà tout
+  // pareil) — Enregistrer déplacé à côté de Supprimer plutôt que tout seul
+  // en bas, remis à sa place habituelle par closeModal() en repartant.
+  modalCancelBtn.hidden = true;
+  const deleteSaveRow = document.createElement('div');
+  deleteSaveRow.className = 'btn-row';
+  deleteSaveRow.appendChild(deleteBtn);
+  deleteSaveRow.appendChild(modalSaveBtn);
+  modalFields.appendChild(deleteSaveRow);
   modalFields.appendChild(deleteErrorEl);
 
   modalSaveBtn.onclick = async () => {
@@ -694,7 +710,8 @@ async function openEditServerModal(server) {
       ip,
       port,
       loader: loaderSelect.value,
-      mcVersion: versionSelect.value
+      mcVersion: versionSelect.value,
+      manifestUrl: manifestInput.value.trim()
     });
     // Loader/version potentiellement changés : le cache "Optimiser" de ce
     // serveur ne vaut plus rien (le cache crack/premium, lui, est côté main

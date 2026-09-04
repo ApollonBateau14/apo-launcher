@@ -595,9 +595,7 @@ html, body {
 }
 
 .modal-delete-btn {
-  display: block;
-  width: 100%;
-  margin-top: 4px;
+  flex: 1; /* partage la ligne à côté d'Enregistrer, comme .btn */
   padding: 8px;
   background: none;
   border: 1px solid rgba(220,80,80,0.4);

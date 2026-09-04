@@ -438,7 +438,7 @@ ipcMain.handle('set-selected-server', (_e, serverId) => {
 });
 
 // ---- IPC: modifier un serveur (bouton ⚙ dans la liste) ----
-ipcMain.handle('update-server', (_e, { serverId, name, ip, port, loader, mcVersion, icon }) => {
+ipcMain.handle('update-server', (_e, { serverId, name, ip, port, loader, mcVersion, icon, manifestUrl }) => {
   const servers = store.get('servers', []);
   const server = servers.find((s) => s.id === serverId);
   if (!server) return false;
@@ -457,6 +457,7 @@ ipcMain.handle('update-server', (_e, { serverId, name, ip, port, loader, mcVersi
   if (loader) server.loader = loader;
   if (mcVersion) server.mcVersion = mcVersion;
   if (icon !== undefined) server.icon = icon;
+  if (manifestUrl !== undefined) server.manifestUrl = manifestUrl;
   store.set('servers', servers);
   return true;
 });
