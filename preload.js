@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('api', {
   msSilentLogin: () => ipcRenderer.invoke('ms-silent-login'),
   lookupSkin: (username) => ipcRenderer.invoke('lookup-skin', username),
   getCurrentSkin: () => ipcRenderer.invoke('get-current-skin'),
-  applySkin: (skinUrl) => ipcRenderer.invoke('apply-skin', skinUrl),
+  applySkin: (skinUrl, mode) => ipcRenderer.invoke('apply-skin', skinUrl, mode),
   getSkinFavorites: () => ipcRenderer.invoke('get-skin-favorites'),
   toggleSkinFavorite: (name) => ipcRenderer.invoke('toggle-skin-favorite', name),
   setRam: (ramMb) => ipcRenderer.invoke('set-ram', ramMb),

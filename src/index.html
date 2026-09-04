@@ -8,7 +8,7 @@
 <body>
 
   <!-- Fond image — remplace src par ton jpg dans assets/ -->
-  <img class="bg-image" src="assets/wallpaper.jpg" alt="" />
+  <img class="bg-image" src="assets/wallpaper.png" alt="" />
   <div class="bg-overlay"></div>
   <canvas class="particles-canvas" id="particles-canvas"></canvas>
 
@@ -27,10 +27,24 @@
     <button class="win-btn close" id="close-btn">✕</button>
   </div>
 
+  <!-- Aperçu du skin actuel, direct dans le menu — même viewer que
+       l'éditeur (voir loadSkinEverywhere dans renderer.js, qui met les deux
+       canvas à jour ensemble), cliquable pour ouvrir l'éditeur. Position
+       fixe indépendante de .glass-panel (qui reste centré comme avant) —
+       remplace l'ancienne petite icône "joueur" en bas à gauche. -->
+  <button class="home-skin-preview" id="home-skin-preview" data-i18n-title="skin.title" title="Skin">
+    <div class="home-skin-nametag" id="home-skin-nametag"></div>
+    <canvas id="home-skin-canvas" width="200" height="320"></canvas>
+  </button>
+
+  <!-- Purement décoratif — juste pour équilibrer visuellement le coin
+       vide en haut à droite, pas de fonction. -->
+  <img class="home-deco-corner" src="assets/tree-corner.png" alt="" />
+
   <div class="app">
     <div class="logo">Apo Launcher</div>
 
-    <div class="glass-panel">
+      <div class="glass-panel">
       <nav class="nav">
         <button class="nav-item active" data-screen="connexion" data-i18n="nav.connexion">Connexion</button>
         <button class="nav-item" data-screen="play" data-i18n="nav.play">Play</button>
@@ -107,10 +121,7 @@
         <p class="panel-title" style="margin-top:18px;" data-i18n="addons.texturepacksTitle">Texture packs</p>
         <div id="addons-texturepacks-list"></div>
 
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn primary" id="addons-save-btn" data-i18n="modal.save">Enregistrer</button>
-        </div>
-        <p class="hint" id="addons-save-status"></p>
+        <p class="hint" id="addons-save-status" style="margin-top:12px;"></p>
       </section>
 
       <!-- Écran Paramètres -->
@@ -161,18 +172,22 @@
 
   <div class="app-version" id="app-version"></div>
 
-  <!-- Icône "joueur" en bas à gauche : c'est l'aperçu 3D du skin actuel en
-       permanence (pas une icône générique) — cliquer ouvre l'éditeur de
-       skin en plein écran, le même personnage y réapparaît en grand. -->
-  <button class="skin-fab" id="skin-fab" data-i18n-title="skin.title" title="Skin">
-    <canvas id="skin-mini-canvas" width="40" height="56"></canvas>
-  </button>
-
   <!-- Éditeur de skin — plein écran (sous la titlebar), séparé du reste de
        la nav pour laisser toute la place à l'aperçu 3D + aux galeries. -->
   <div class="skin-editor-overlay" id="skin-editor-overlay">
     <button class="skin-editor-close overlay-close-btn" id="skin-editor-close" data-i18n="changelog.close">Fermer</button>
     <div class="skin-editor-left">
+      <!-- Choix du mode d'application du skin — utile seulement si un
+           compte Microsoft est connecté (Premium direct vs. tester le rendu
+           Crack) ; sinon Crack est le seul mode utile, switch caché. -->
+      <div class="segmented-switch skin-mode-switch" id="skin-mode-switch" hidden>
+        <button type="button" class="segmented-switch-btn" id="skin-mode-microsoft" data-mode="microsoft">
+          <span data-i18n="skin.modePremium">Premium</span>
+        </button>
+        <button type="button" class="segmented-switch-btn" id="skin-mode-littleskin" data-mode="littleskin">
+          <span data-i18n="skin.modeCrack">Crack</span>
+        </button>
+      </div>
       <div class="skin-preview-frame">
         <canvas id="skin-3d-canvas" width="240" height="330"></canvas>
         <button class="skin-action-icon skin-favorite-btn" id="skin-favorite-btn" data-i18n-title="skin.favorite" title="Favori" hidden>
@@ -195,6 +210,20 @@
 
       <p class="panel-title" style="margin-top:18px;" data-i18n="skin.favoritesTitle">Favoris</p>
       <div class="skin-gallery" id="skin-favorites-grid"></div>
+
+      <!-- Skin visible en crack via LittleSkin/CustomSkinLoader — leur API
+           ouverte ne permet pas d'uploader un fichier (juste d'assigner une
+           texture déjà dans la bibliothèque), donc pas de login/upload
+           automatique possible : en mode Crack, le bouton "Utiliser ce skin"
+           prépare le fichier et ouvre leur page d'envoi intégrée, à finir à
+           la main en 2-3 clics (leur propre connexion s'affiche dedans si
+           besoin, pas la peine d'en gérer une nous-mêmes). -->
+      <p class="panel-title" style="margin-top:18px;" data-i18n="skin.littleskinTitle">Skin visible en crack</p>
+      <p class="hint" data-i18n="skin.littleskinHint">Prends un skin déjà fait sur LittleSkin, ou termine l'envoi du tien en 2-3 clics.</p>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn primary" id="littleskin-open-btn" data-i18n="skin.littleskinOpen">Parcourir LittleSkin</button>
+        <button class="btn" id="littleskin-closet-btn" data-i18n="skin.littleskinCloset">Mon closet</button>
+      </div>
     </div>
   </div>
 
@@ -202,9 +231,9 @@
        skin. Sert juste à parcourir/copier un pseudo soi-même (pas de
        scraping/curation de notre côté : on affiche leur site tel quel,
        comme un onglet de navigateur classique). -->
-  <div class="namemc-overlay" id="namemc-overlay">
-    <div class="namemc-topbar">
-      <div class="namemc-topbar-left">
+  <div class="embedded-browser-overlay" id="namemc-overlay">
+    <div class="embedded-browser-topbar">
+      <div class="embedded-browser-topbar-left">
         <button class="namemc-nav-btn" id="namemc-back" data-i18n-title="skin.namemcBack" title="Précédent" disabled>‹</button>
         <button class="namemc-nav-btn" id="namemc-forward" data-i18n-title="skin.namemcForward" title="Suivant" disabled>›</button>
         <span data-i18n="skin.browseNamemc">Chercher un skin sur NameMC</span>
@@ -212,9 +241,26 @@
       <button class="overlay-close-btn" id="namemc-close" data-i18n="changelog.close">Fermer</button>
     </div>
     <!-- Pas de src ici : chargé au premier clic depuis renderer.js, pour
-         laisser le temps à uBlock Origin de se charger dans la session
-         (voir main.js/ensureUblockLoaded) avant la toute première visite. -->
+         laisser le temps au bloqueur de pub de se charger dans la session
+         (voir main.js/ensureAdblockLoaded) avant la toute première visite. -->
     <webview id="namemc-webview" allowpopups></webview>
+  </div>
+
+  <!-- Page LittleSkin intégrée — même principe que le navigateur NameMC
+       ci-dessus (on affiche leur site tel quel). Sert à la fois pour se
+       connecter/créer un compte et pour terminer l'envoi d'un skin en mode
+       Crack (voir apply-skin dans main.js) : le src est fixé par
+       renderer.js selon l'intention (pas de valeur par défaut ici). -->
+  <div class="embedded-browser-overlay" id="littleskin-overlay">
+    <div class="embedded-browser-topbar">
+      <div class="embedded-browser-topbar-left">
+        <button class="namemc-nav-btn" id="littleskin-back" data-i18n-title="skin.namemcBack" title="Précédent" disabled>‹</button>
+        <button class="namemc-nav-btn" id="littleskin-forward" data-i18n-title="skin.namemcForward" title="Suivant" disabled>›</button>
+        <span id="littleskin-overlay-title" data-i18n="skin.littleskinOverlayTitle">LittleSkin</span>
+      </div>
+      <button class="overlay-close-btn" id="littleskin-webview-close" data-i18n="changelog.close">Fermer</button>
+    </div>
+    <webview id="littleskin-webview" allowpopups></webview>
   </div>
 
   <!-- Emoji drapeaux non fiables sous Windows (rendus en texte "GB"/"FR") —

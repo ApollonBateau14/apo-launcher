@@ -14,6 +14,7 @@ const autoUpdate = require('./src/lib/autoUpdate');
 const msAuth = require('./src/lib/msAuth');
 const skins = require('./src/lib/skins');
 const { ensureAdblockLoaded } = require('./src/lib/adblock');
+const fetch = require('node-fetch');
 const { getReleaseVersions } = require('./src/lib/javaRuntime');
 
 // Métadonnées des serveurs : pas sensible, ça reste dans le code (public sur GitHub).
@@ -161,6 +162,19 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
+
+  // Un lien "target=_blank" dans un <webview> (NameMC, LittleSkin) ouvrirait
+  // sinon une vraie fenêtre OS séparée (avec sa propre barre de titre native,
+  // pas fermable depuis notre bouton "Fermer") — l'event 'new-window' du
+  // webview n'existe plus depuis Electron 24 pour intercepter ça côté
+  // renderer, il faut passer par setWindowOpenHandler sur le webContents du
+  // guest, ici, côté main process.
+  mainWindow.webContents.on('did-attach-webview', (_event, guestWebContents) => {
+    guestWebContents.setWindowOpenHandler(({ url }) => {
+      guestWebContents.loadURL(url);
+      return { action: 'deny' };
+    });
+  });
 }
 
 app.whenReady().then(() => {
@@ -247,25 +261,86 @@ ipcMain.handle('get-current-skin', async () => {
       return { skinUrl: null, mode: 'microsoft' };
     }
   }
+
+  // Pas de compte Microsoft : reflète ce qui est VRAIMENT équipé sur
+  // LittleSkin pour le pseudo utilisé pour jouer (même identité que
+  // CustomSkinLoader va chercher en jeu) — sinon le launcher ne saurait
+  // jamais qu'un skin a été changé directement sur leur site.
+  const username = store.get('username', null);
+  if (username) {
+    try {
+      const result = await skins.lookupLittleskinByUsername(username);
+      if (result?.skinUrl) return { skinUrl: result.skinUrl, mode: 'littleskin' };
+    } catch {
+      // pas de personnage LittleSkin avec ce pseudo, ou réseau indisponible
+    }
+  }
+
   return { skinUrl: store.get('offlineSkinUrl', null), mode: 'offline' };
 });
 
-ipcMain.handle('apply-skin', async (_e, skinUrl) => {
+// Récupère les octets du PNG, que ce soit une vraie URL (résultat de
+// recherche, hébergée par Mojang) ou une data URI (favori mis en cache
+// localement — voir src/lib/skins.js readFavoritePng) : node-fetch refuse
+// tout ce qui n'est pas http(s), donc la data URI doit être décodée à la main.
+async function skinUrlToBuffer(skinUrl) {
+  if (skinUrl.startsWith('data:')) {
+    const base64 = skinUrl.slice(skinUrl.indexOf(',') + 1);
+    return Buffer.from(base64, 'base64');
+  }
+  const res = await fetch(skinUrl);
+  if (!res.ok) throw new Error(`Téléchargement du skin échoué (HTTP ${res.status})`);
+  return res.buffer();
+}
+
+// LittleSkin (crack) : leur API ouverte n'a pas d'endpoint d'upload — juste
+// de quoi assigner une texture DÉJÀ dans la bibliothèque à un personnage,
+// jamais d'envoyer un nouveau fichier (vérifié sur leurs routes officielles).
+// Impossible de le faire nous-mêmes en un clic : on sauvegarde le PNG dans
+// Téléchargements (facile à retrouver) et le renderer ouvre leur page
+// d'envoi intégrée, à finir à la main en 2-3 clics.
+async function saveSkinForLittleskinUpload(skinUrl) {
+  const filePath = path.join(app.getPath('downloads'), 'apolauncher-skin.png');
+  fs.writeFileSync(filePath, await skinUrlToBuffer(skinUrl));
+  return filePath;
+}
+
+ipcMain.handle('apply-skin', async (_e, skinUrl, mode) => {
   const msAccount = store.get('msAccount', null);
-  if (msAccount) {
+
+  // `mode` vient du switch Premium/Crack de l'éditeur (utile même compte
+  // Microsoft connecté, pour tester le rendu crack) — sinon Crack par
+  // défaut si pas de compte Microsoft (plus utile qu'un aperçu local muet).
+  const resolvedMode = mode || (msAccount ? 'microsoft' : 'littleskin');
+  store.set('skinApplyMode', resolvedMode);
+
+  if (resolvedMode === 'microsoft') {
+    if (!msAccount) return { success: false, error: 'Aucun compte Microsoft connecté.' };
     try {
       const auth = await msAuth.getLaunchAuth();
-      await skins.applySkinToMicrosoftAccount(auth.access_token, skinUrl);
-      return { success: true };
+      // Mojang ne peut pas aller chercher une data URI (favori en cache
+      // local) lui-même — upload direct du fichier dans ce cas, sinon
+      // (résultat de recherche = vraie URL Mojang) l'ancienne méthode.
+      if (skinUrl.startsWith('data:')) {
+        await skins.applySkinFileToMicrosoftAccount(auth.access_token, await skinUrlToBuffer(skinUrl));
+      } else {
+        await skins.applySkinToMicrosoftAccount(auth.access_token, skinUrl);
+      }
+      return { success: true, visibility: 'everyone' };
     } catch (err) {
       return { success: false, error: err.message };
     }
   }
-  // Offline : pas de vrai compte à modifier, juste un aperçu local
-  // sauvegardé (jamais visible par les autres joueurs en jeu — limitation
-  // du mode offline, voir README).
+
+  // Sauvegarde locale dans tous les cas (aperçu/skin courant à jour côté
+  // launcher), puis assist manuel LittleSkin par-dessus.
   store.set('offlineSkinUrl', skinUrl);
-  return { success: true };
+  try {
+    const filePath = await saveSkinForLittleskinUpload(skinUrl);
+    return { success: true, visibility: 'littleskin-manual', filePath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 // ---- IPC: favoris skin (recherches sauvegardées par le joueur) ----

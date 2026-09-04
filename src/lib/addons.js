@@ -25,7 +25,15 @@ const MOD_ADDONS = [
   // Rend la 2e couche du skin (chapeau, veste, manches...) en vraie
   // géométrie 3D au lieu d'un aplat gonflé — meilleur rendu des skins
   // avec capuche/cheveux qui dépassent, entre autres.
-  { id: '3dskinlayers', name: '3D Skin Layers', kind: 'mod', defaultOn: false }
+  { id: '3dskinlayers', name: '3D Skin Layers', kind: 'mod', defaultOn: false },
+  // Charge les skins depuis LittleSkin au lieu de l'API Mojang seule —
+  // rend un skin personnalisé réellement visible aux autres joueurs qui
+  // ont ce mod, même en offline/cracked (pas de compte Microsoft requis).
+  // L'upload du skin lui-même reste manuel (voir menu Skin, mode Crack) :
+  // l'API LittleSkin ne permet pas de l'automatiser.
+  // Config LittleSkin injectée automatiquement à l'installation, voir
+  // installSingleFileAddon plus bas.
+  { id: 'customskinloader', name: 'CustomSkinLoader', kind: 'mod', defaultOn: false }
 ];
 
 const SHADER_ADDONS = [
@@ -147,19 +155,28 @@ async function resolveBestFile(slug, server, kind) {
   } else if (server.loader && server.loader !== 'vanilla') {
     params.set('loaders', JSON.stringify([server.loader]));
   }
-  // Contrairement à un mod, un resourcepack tourne quasiment toujours même
-  // sans version taguée pile pour le serveur (le jeu affiche juste un
-  // avertissement "peut ne pas fonctionner", rien de plus concret) —
-  // filtrer par game_versions bloquait le catalogue ET le lancement pour
-  // rien (ex: Faithful 64x pas taggué "1.21.1" pile, alors qu'il tourne
-  // très bien dessus). On prend juste la dernière version publiée.
-  if (server.mcVersion && kind !== 'resourcepack') {
-    params.set('game_versions', JSON.stringify([server.mcVersion]));
+
+  async function fetchVersions(exactGameVersion) {
+    const p = new URLSearchParams(params);
+    if (exactGameVersion && server.mcVersion && kind !== 'resourcepack') {
+      p.set('game_versions', JSON.stringify([server.mcVersion]));
+    }
+    const res = await fetch(`https://api.modrinth.com/v2/project/${encodeURIComponent(slug)}/version?${p}`);
+    if (!res.ok) throw new Error(`"${slug}" introuvable sur Modrinth (HTTP ${res.status})`);
+    return res.json();
   }
 
-  const res = await fetch(`https://api.modrinth.com/v2/project/${encodeURIComponent(slug)}/version?${params}`);
-  if (!res.ok) throw new Error(`"${slug}" introuvable sur Modrinth (HTTP ${res.status})`);
-  const versions = await res.json();
+  // Version exacte en priorité, mais un mod pas encore taggué pile pour un
+  // patch tout juste sorti (ex: CustomSkinLoader tagué "26.1"/"26.1.1" mais
+  // pas encore "26.1.2") tourne quasiment toujours quand même dessus — sans
+  // ce repli, il était juste silencieusement jamais installé du tout, sans
+  // le moindre message. Même logique que pour les resourcepacks, juste en
+  // dernier recours plutôt qu'en filtre par défaut (un mod est plus souvent
+  // vraiment incompatible qu'un resourcepack).
+  let versions = await fetchVersions(true);
+  if (!versions.length && kind !== 'resourcepack' && server.mcVersion) {
+    versions = await fetchVersions(false);
+  }
   if (!versions.length) throw new Error(`Pas de version de "${slug}" compatible avec ce serveur.`);
   const file = versions[0].files.find((f) => f.primary) || versions[0].files[0];
   if (!file) throw new Error(`Aucun fichier trouvé pour "${slug}".`);
@@ -168,6 +185,29 @@ async function resolveBestFile(slug, server, kind) {
 
 function fileSha1(filePath) {
   return crypto.createHash('sha1').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+// Ajoute LittleSkin comme source de skins dans la config de CustomSkinLoader
+// (fusionne si le joueur a déjà personnalisé le fichier, jamais d'écrasement
+// complet) — sinon le mod serait installé mais ne saurait pas où aller
+// chercher les skins uploadés depuis notre menu Skin (mode Crack).
+function ensureCustomSkinLoaderConfig(gameDir) {
+  const configPath = path.join(gameDir, 'CustomSkinLoader', 'CustomSkinLoader.json');
+  let config = {};
+  if (fs.existsSync(configPath)) {
+    try {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    } catch {
+      config = {};
+    }
+  }
+  if (!Array.isArray(config.loadlist)) config.loadlist = [];
+  const hasLittleSkin = config.loadlist.some((e) => e.type === 'CustomSkinAPI' && e.root === 'https://littleskin.cn/');
+  if (!hasLittleSkin) {
+    config.loadlist.push({ name: 'LittleSkin', type: 'CustomSkinAPI', root: 'https://littleskin.cn/' });
+  }
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 }
 
 async function installSingleFileAddon(addon, server, gameDir, onProgress) {
@@ -183,6 +223,10 @@ async function installSingleFileAddon(addon, server, gameDir, onProgress) {
       { hash: file.hashes?.sha1, algo: 'sha1', size: file.size },
       (downloaded, total) => { if (onProgress) onProgress({ file: `${folder}/${file.filename}`, downloaded, total }); }
     );
+  }
+
+  if (addon.id === 'customskinloader') {
+    ensureCustomSkinLoaderConfig(gameDir);
   }
 }
 

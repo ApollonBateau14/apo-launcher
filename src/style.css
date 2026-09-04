@@ -41,11 +41,10 @@ html {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* wallpaper.jpg est en portrait (1200x2140) pour une fenêtre en paysage
-     (900x600) : le recadrage vertical automatique (50%) tombait en plein sur
-     la grosse lueur chaude à gauche, déséquilibrant tout le fond. Recadré
-     plus haut pour une composition équilibrée gauche/droite. */
-  object-position: center 25%;
+  /* wallpaper.png est en paysage (1200x672), assez proche du ratio de la
+     fenêtre (900x600) — le centrage par défaut suffit, le chemin au milieu
+     de la composition reste bien cadré après le recadrage cover. */
+  object-position: center;
   z-index: -3;
 }
 
@@ -101,8 +100,8 @@ html {
 .titlebar .spacer { flex: 1; }
 .win-btn {
   -webkit-app-region: no-drag;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
+  background: none;
+  border: none;
   color: #fff;
   border-radius: 8px;
   width: 28px;
@@ -131,6 +130,10 @@ html {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  /* Le PNG source a un fond carré blanc (pas de transparence autour du
+     disque) — border-radius:50% le rogne en cercle pour ne garder que
+     le CD, sans avoir à retoucher l'asset. */
+  border-radius: 50%;
   animation: cd-spin 4s linear infinite;
 }
 .mute-btn.muted .mute-icon {
@@ -156,6 +159,89 @@ html {
   font-weight: 700;
   letter-spacing: 0.5px;
   text-shadow: 0 2px 20px rgba(0,0,0,0.4);
+}
+
+/* Décoration purement visuelle dans le coin haut-droit (branche + arbre,
+   PNG transparent fourni par l'utilisateur) — comble le vide en miroir de
+   la boîte skin à gauche. Pas d'interaction, sous tout le reste (juste
+   au-dessus du fond). */
+.home-deco-corner {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh; /* touche haut ET bas */
+  width: auto; /* garde le ratio naturel du PNG (1024x683) — image entière, jamais recadrée */
+  pointer-events: none;
+  /* Vu son ratio large (1024x683) mis à l'échelle sur toute la hauteur de
+     la fenêtre, l'image finit presque aussi large qu'elle — ses 4 coins
+     tombent à peu près sur ceux, arrondis, de la fenêtre (html a beau avoir
+     overflow:hidden, ça ne clippe pas de façon fiable un élément
+     position:fixed, même souci que .bg-image/.bg-overlay plus haut). */
+  border-radius: 16px;
+  /* Fondu sur le bord gauche — la partie transparente du PNG s'arrête déjà
+     net à un moment, ça adoucit encore la transition vers le fond étoilé. */
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 30%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 30%);
+  /* Négatif pour passer DERRIÈRE la titlebar (z-index auto) et le reste de
+     l'UI — un z-index positif l'aurait fait peindre par-dessus malgré sa
+     position plus tôt dans le flux visuel, juste au-dessus du fond
+     (particles-canvas est à -1 aussi, mais placé avant lui dans le DOM). */
+  z-index: -1;
+}
+
+/* Aperçu du skin actuel — position fixe indépendante de .glass-panel (qui
+   reste centré comme avant), plaquée à gauche de la fenêtre plutôt que
+   calculée par rapport à la carte : les deux ne se poussent plus l'un
+   l'autre. Remplace l'ancienne petite icône "joueur" en bas à gauche —
+   même rôle (ouvre l'éditeur), juste en grand et directement visible. Le
+   canvas est mis à jour par la même fonction loadSkinEverywhere() que les
+   deux autres instances (éditeur + future petite icône, s'il y en a).
+   Fenêtre non-redimensionnable (voir main.js) : le positionnement en
+   pixels fixes ne pose pas de souci de responsive. */
+.home-skin-preview {
+  position: fixed;
+  left: 40px;
+  top: calc(35px + (100vh - 35px) / 2); /* centré verticalement sous la titlebar (35px) */
+  transform: translateY(-50%);
+  width: 200px;
+  height: 320px;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 20px;
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+  cursor: pointer;
+  overflow: hidden;
+  z-index: 6;
+  transition: border-color 0.2s ease, transform 0.15s ease;
+}
+.home-skin-preview:hover { border-color: rgba(230,180,80,0.7); transform: translateY(calc(-50% - 2px)); }
+.home-skin-preview canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+
+/* Étiquette façon "nametag" Minecraft flottant au-dessus de la tête —
+   position absolue par rapport au cadre, pas au canvas (le personnage
+   n'occupe pas toute la hauteur du canvas, le haut de la tête varie peu
+   d'un skin à l'autre en revanche). */
+.home-skin-nametag {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 20px);
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .glass-panel {
@@ -328,7 +414,10 @@ html {
      plus de ligne de boutons séparée) — l'espace récupéré revient ici. */
   max-height: 180px;
   overflow-y: auto;
+  /* Scroll à la molette toujours actif, juste sans piste/curseur visible. */
+  scrollbar-width: none;
 }
+.server-list::-webkit-scrollbar { display: none; }
 
 .server-card {
   display: flex;
@@ -385,18 +474,18 @@ html {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 2px 7px;
-  border-radius: 8px;
-  border: 1px solid transparent;
+  border-radius: 5px;
 }
+/* Crack = rouge, Premium = doré — opaques avec un dégradé vertical
+   clair (haut) vers foncé (bas), plus de fond juste teinté-transparent. */
 .server-mode-badge.server-mode-offline {
-  color: rgba(120,220,140,1);
-  background: rgba(120,220,140,0.15);
-  border-color: rgba(120,220,140,0.4);
+  color: #fff;
+  background: linear-gradient(180deg, #e0685f 0%, #7a1f1f 100%);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
 }
 .server-mode-badge.server-mode-online {
-  color: rgba(230,180,80,1);
-  background: rgba(230,180,80,0.15);
-  border-color: rgba(230,180,80,0.4);
+  color: #1b1530;
+  background: linear-gradient(180deg, #f3d9a8 0%, #8a6320 100%);
 }
 
 .server-edit-btn {
@@ -473,14 +562,9 @@ html {
 .skin-editor-right::-webkit-scrollbar {
   width: 8px;
 }
-.server-list::-webkit-scrollbar {
-  width: 5px; /* plus fine que les autres — discrète à côté des cartes serveur */
-}
-.server-list::-webkit-scrollbar-track,
 .skin-editor-right::-webkit-scrollbar-track {
   background: transparent;
 }
-.server-list::-webkit-scrollbar-thumb,
 .skin-editor-right::-webkit-scrollbar-thumb {
   /* Pas de border-clip transparent ici : combiné à border-radius, Chromium
      ne rendait l'arrondi qu'après un repaint (ex: au survol) — visible au
@@ -489,7 +573,6 @@ html {
   background-color: rgba(230,180,80,0.4);
   border-radius: 8px;
 }
-.server-list::-webkit-scrollbar-thumb:hover,
 .skin-editor-right::-webkit-scrollbar-thumb:hover {
   background: rgba(230,180,80,0.65);
 }
@@ -624,27 +707,6 @@ html {
 }
 .segmented-switch-btn .addon-icon { width: 20px; height: 20px; }
 
-/* Icône "joueur" en bas à gauche — c'est en fait l'aperçu 3D du skin
-   actuel en permanence (skinview3d, deuxième instance synchronisée avec
-   celle de l'éditeur), pas une icône générique. Ouvre l'éditeur plein écran. */
-.skin-fab {
-  position: fixed;
-  bottom: 40px;
-  left: 14px;
-  width: 40px;
-  height: 56px;
-  padding: 0;
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 10px;
-  background: rgba(255,255,255,0.1);
-  backdrop-filter: blur(6px);
-  cursor: pointer;
-  overflow: hidden;
-  z-index: 6;
-  transition: border-color 0.2s ease, transform 0.15s ease;
-}
-.skin-fab:hover { border-color: rgba(230,180,80,0.8); transform: translateY(-2px); }
-.skin-fab canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
 
 /* Éditeur de skin plein écran — séparé de la nav/glass-panel habituelle,
    recouvre toute la fenêtre sous la titlebar. Aperçu 3D en grand à
@@ -691,11 +753,24 @@ html {
   right: 22px;
 }
 .skin-editor-left {
+  position: relative;
   flex: 0 0 34%;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden; /* le canvas ne doit jamais déborder de sa colonne */
+}
+/* Position absolue (pas dans le flux) pour ne pas pousser le canvas vers le
+   bas — alignée à la même hauteur que la barre de recherche de la colonne
+   de droite (.skin-3d-controls) plutôt que collée au-dessus de l'aperçu. */
+.skin-mode-switch {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  right: 0;
+  width: 240px;
+  max-width: 100%;
+  margin: 0 auto;
 }
 /* Enrobe le canvas au plus près (pas toute la colonne .skin-editor-left,
    souvent plus large/haute que le rendu réel) — les icônes se positionnent
@@ -708,36 +783,34 @@ html {
   line-height: 0; /* évite l'espace fantôme sous le canvas (inline par défaut) */
 }
 /* Icônes flottantes en haut à droite de l'aperçu 3D : étoile (favori) +
-   flèche vers le bas (utiliser ce skin) — remplacent le bouton texte. */
+   flèche vers le bas (utiliser ce skin), l'une sous l'autre — juste les
+   icônes, pas de rond derrière (l'ombre portée suffit à les garder
+   lisibles quel que soit le skin en dessous). */
 .skin-action-icon {
   position: absolute;
-  top: 14px;
-  width: 34px;
-  height: 34px;
+  right: 14px;
+  width: 22px;
+  height: 22px;
   padding: 0;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.3);
-  background: rgba(20,16,30,0.5);
-  backdrop-filter: blur(6px);
+  border: none;
+  background: none;
   color: #fff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.7));
+  transition: color 0.2s ease, transform 0.15s ease;
 }
-.skin-action-icon svg { width: 17px; height: 17px; }
-.skin-favorite-btn { right: 56px; }
-.skin-apply-btn { right: 14px; }
+.skin-action-icon svg { width: 20px; height: 20px; }
+.skin-favorite-btn { top: 14px; }
+.skin-apply-btn { top: 44px; }
 .skin-favorite-btn:hover, .skin-apply-btn:hover {
-  border-color: rgba(230,180,80,0.8);
-  background: rgba(230,180,80,0.25);
+  color: rgba(230,180,80,1);
+  transform: scale(1.1);
 }
 /* Étoile pleine (dorée) quand le skin affiché est déjà en favori. */
-.skin-favorite-btn.active {
-  color: rgba(230,180,80,1);
-  border-color: rgba(230,180,80,0.8);
-}
+.skin-favorite-btn.active { color: rgba(230,180,80,1); }
 .skin-favorite-btn.active svg { fill: currentColor; }
 .skin-favorite-btn svg { fill: none; stroke: currentColor; stroke-width: 1.5; }
 #skin-3d-canvas {
@@ -780,7 +853,11 @@ html {
 /* Navigateur NameMC intégré — même habillage que l'éditeur de skin, un
    cran au-dessus (par-dessus) puisqu'il s'ouvre depuis là. Le <webview>
    affiche leur site tel quel, aucun contenu n'est copié/hébergé par nous. */
-.namemc-overlay {
+/* Habillage générique pour tout <webview> intégré en plein écran depuis
+   l'éditeur de skin (NameMC, création de compte LittleSkin...) — un cran
+   au-dessus (par-dessus) puisqu'ils s'ouvrent depuis là. Affiche le site
+   tel quel, aucun contenu n'est copié/hébergé par nous. */
+.embedded-browser-overlay {
   display: none;
   flex-direction: column;
   position: fixed;
@@ -793,12 +870,12 @@ html {
   background: rgba(10,8,20,0.6);
   z-index: 50;
 }
-.namemc-overlay.active { display: flex; }
+.embedded-browser-overlay.active { display: flex; }
 /* Le <webview> Electron peut ignorer le z-index et se dessiner par-dessus
    le reste du DOM (limitation connue) — plutôt que de superposer un
    bouton fermer sur lui (invisible/inatteignable), on lui réserve une
    vraie barre au-dessus, jamais recouverte. */
-.namemc-topbar {
+.embedded-browser-topbar {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -809,7 +886,7 @@ html {
   font-size: 13px;
   font-weight: 600;
 }
-.namemc-topbar-left { display: flex; align-items: center; gap: 8px; }
+.embedded-browser-topbar-left { display: flex; align-items: center; gap: 8px; }
 .namemc-nav-btn {
   width: 26px;
   height: 26px;
@@ -830,7 +907,7 @@ html {
   border-color: rgba(230,180,80,0.8);
 }
 .namemc-nav-btn:disabled { opacity: 0.35; cursor: default; }
-.namemc-overlay #namemc-webview {
+.embedded-browser-overlay webview {
   flex: 1;
   width: 100%;
   border: none;

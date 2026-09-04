@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
+const FormData = require('form-data');
 const { app } = require('electron');
 
 async function fetchSkinByUuid(uuid, name) {
@@ -37,6 +38,33 @@ async function lookupSkinByUuid(uuid) {
   return fetchSkinByUuid(uuid);
 }
 
+const LITTLESKIN_YGGDRASIL_ROOT = 'https://littleskin.cn/api/yggdrasil';
+
+// Même principe que lookupSkinByUsername, mais côté LittleSkin plutôt que
+// Mojang — API Yggdrasil publique (pas besoin d'être connecté), exactement
+// ce que CustomSkinLoader interroge en jeu. Sert à refléter dans le launcher
+// ce qui est VRAIMENT équipé sur LittleSkin (le joueur a pu changer son
+// skin directement sur leur site, sans repasser par notre recherche).
+async function lookupLittleskinByUsername(username) {
+  const lookupRes = await fetch(`${LITTLESKIN_YGGDRASIL_ROOT}/api/profiles/minecraft`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify([username])
+  });
+  if (!lookupRes.ok) throw new Error(`Erreur LittleSkin (HTTP ${lookupRes.status})`);
+  const matches = await lookupRes.json();
+  const match = matches.find((p) => p.name.toLowerCase() === username.toLowerCase());
+  if (!match) return null; // pas de personnage LittleSkin avec ce pseudo exact
+
+  const profileRes = await fetch(`${LITTLESKIN_YGGDRASIL_ROOT}/sessionserver/session/minecraft/profile/${match.id}`);
+  if (!profileRes.ok) throw new Error(`Erreur LittleSkin (HTTP ${profileRes.status})`);
+  const profile = await profileRes.json();
+  const texturesProp = profile.properties?.find((p) => p.name === 'textures');
+  if (!texturesProp) return { name: profile.name, uuid: match.id, skinUrl: null };
+  const decoded = JSON.parse(Buffer.from(texturesProp.value, 'base64').toString());
+  return { name: profile.name, uuid: match.id, skinUrl: decoded.textures?.SKIN?.url || null };
+}
+
 // Change le skin du compte Microsoft connecté, via l'API officielle
 // Minecraft Services — on lui donne l'URL d'un skin déjà hébergé (celui
 // d'un compte existant trouvé via lookupSkinByUsername), Mojang va la
@@ -49,6 +77,25 @@ async function applySkinToMicrosoftAccount(accessToken, skinUrl, variant = 'clas
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ variant, url: skinUrl })
+  });
+  if (!res.ok) {
+    throw new Error(`Échec du changement de skin (HTTP ${res.status})`);
+  }
+  return res.json();
+}
+
+// Variante multipart du même endpoint, pour un skin qu'on a déjà en local
+// (favori mis en cache) et pas comme URL hébergée que Mojang pourrait aller
+// chercher lui-même — c'est ce que fait le launcher officiel quand on
+// importe un fichier PNG depuis le disque.
+async function applySkinFileToMicrosoftAccount(accessToken, buffer, variant = 'classic') {
+  const form = new FormData();
+  form.append('variant', variant);
+  form.append('file', buffer, { filename: 'skin.png', contentType: 'image/png' });
+  const res = await fetch('https://api.minecraftservices.com/minecraft/profile/skins', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, ...form.getHeaders() },
+    body: form
   });
   if (!res.ok) {
     throw new Error(`Échec du changement de skin (HTTP ${res.status})`);
@@ -107,7 +154,9 @@ function removeFavoriteSkinFile(localPath) {
 module.exports = {
   lookupSkinByUsername,
   lookupSkinByUuid,
+  lookupLittleskinByUsername,
   applySkinToMicrosoftAccount,
+  applySkinFileToMicrosoftAccount,
   cacheFavoriteSkin,
   removeFavoriteSkinFile,
   readFavoritePng

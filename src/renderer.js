@@ -60,11 +60,20 @@ function setActiveLangButton(lang) {
   });
 }
 
+// Pseudo affiché comme un nametag au-dessus de la tête dans l'aperçu du
+// menu principal — celui du compte Microsoft si connecté, sinon le pseudo
+// offline tapé à la connexion.
+async function updateHomeNametag() {
+  const settings = await window.api.getSettings();
+  document.getElementById('home-skin-nametag').textContent = settings.msAccount?.name || settings.username || '';
+}
+
 function showMsAccount(account) {
   document.getElementById('ms-account-connected').hidden = !account;
   document.getElementById('ms-account-disconnected').hidden = !!account;
   if (account) document.getElementById('ms-account-name').textContent = account.name;
   if (typeof loadCurrentSkin === 'function') loadCurrentSkin();
+  updateHomeNametag();
 }
 
 async function loadSettings() {
@@ -530,15 +539,17 @@ function renderAddonList(container, items, enabledIds) {
 }
 
 // --- Écran Mods/Shaders/Texture packs (onglet dédié, pas un popup) ---
-const addonsSaveBtn = document.getElementById('addons-save-btn');
-const addonsSaveStatus = document.getElementById('addons-save-status');
+// Sauvegarde automatique à chaque coche/switch — pas de bouton "Enregistrer"
+// à penser à cliquer (source de confusion : ça avait l'air de "se décocher
+// tout seul" en rouvrant l'onglet alors que rien n'avait juste été sauvé).
 let addonsAllControls = [];
 
 async function renderAddonsScreen() {
   const [catalog, settings] = await Promise.all([window.api.getAddonCatalog(), window.api.getSettings()]);
   const enabledIds = new Set(settings.enabledAddons || []);
 
-  addonsSaveStatus.textContent = '';
+  clearTimeout(addonsSaveStatusTimer);
+  document.getElementById('addons-save-status').textContent = '';
   addonsAllControls = [
     ...renderAddonList(document.getElementById('addons-mods-list'), catalog.mods, enabledIds),
     ...renderAddonList(document.getElementById('addons-shaders-list'), catalog.shaders, enabledIds),
@@ -546,10 +557,31 @@ async function renderAddonsScreen() {
   ];
 }
 
-addonsSaveBtn.addEventListener('click', async () => {
+let addonsSaveStatusTimer = null;
+function saveEnabledAddons() {
   const ids = addonsAllControls.filter((c) => c.input.checked).map((c) => c.item.id);
-  await window.api.setEnabledAddons(ids);
-  addonsSaveStatus.textContent = window.i18n.t('addons.saved');
+  window.api.setEnabledAddons(ids);
+
+  // Petite confirmation qui s'efface toute seule — sauvegarde automatique
+  // donc pas de bouton pour la déclencher, mais un retour visuel reste utile
+  // pour être sûr que le clic a bien été pris en compte.
+  const statusEl = document.getElementById('addons-save-status');
+  statusEl.textContent = window.i18n.t('addons.saved');
+  clearTimeout(addonsSaveStatusTimer);
+  addonsSaveStatusTimer = setTimeout(() => { statusEl.textContent = ''; }, 1500);
+}
+
+// Délégation sur l'écran entier plutôt que sur chaque case : les listes sont
+// reconstruites (innerHTML) à chaque ouverture de l'onglet, mais l'écran lui
+// -même ne l'est jamais, donc un seul attachement suffit pour toute sa durée
+// de vie. "change" pour les cases à cocher, "click" pour le switch segmenté
+// (Fabulously Optimized / Fresh Animations) qui n'est pas un <input>.
+const screenAddonsEl = document.getElementById('screen-addons');
+screenAddonsEl.addEventListener('change', (e) => {
+  if (e.target.matches('input[type="checkbox"]')) saveEnabledAddons();
+});
+screenAddonsEl.addEventListener('click', (e) => {
+  if (e.target.closest('.segmented-switch-btn')) saveEnabledAddons();
 });
 
 // Un seul champ pour IP+port, comme la "connexion rapide" de Minecraft :
@@ -690,6 +722,7 @@ document.getElementById('save-username-btn').addEventListener('click', async () 
   const value = document.getElementById('username-input').value.trim();
   if (!value) return;
   await window.api.setUsername(value);
+  updateHomeNametag();
   goToScreen('play');
 });
 
@@ -722,9 +755,9 @@ document.getElementById('ms-logout-btn').addEventListener('click', async () => {
 // d'inclinaison verticale ni de zoom molette, juste l'azimut).
 //
 // Deux instances synchronisées : la grande dans l'éditeur plein écran
-// (interactive, sert aussi à l'aperçu recherche/galeries), et une petite
-// en permanence dans le coin bas-gauche (l'icône "joueur" elle-même) —
-// jamais interactive, juste un reflet en direct de l'autre.
+// (interactive, sert aussi à l'aperçu recherche/galeries), et celle
+// affichée en permanence dans le menu principal (jamais interactive —
+// le clic ouvre l'éditeur plutôt que de faire tourner le perso sur place).
 function makeSkinViewer(canvasId, width, height) {
   const viewer = new skinview3d.SkinViewer({
     canvas: document.getElementById(canvasId),
@@ -745,12 +778,12 @@ function makeSkinViewer(canvasId, width, height) {
   return viewer;
 }
 const skinViewer = makeSkinViewer('skin-3d-canvas', 240, 330);
-const skinViewerMini = makeSkinViewer('skin-mini-canvas', 40, 56);
-skinViewerMini.controls.enabled = false; // décoratif seulement, pas de drag sur l'icône
+const skinViewerHome = makeSkinViewer('home-skin-canvas', 200, 320);
+skinViewerHome.controls.enabled = false; // décoratif, pas de drag — le clic ouvre l'éditeur
 
 function loadSkinEverywhere(url) {
   skinViewer.loadSkin(url);
-  skinViewerMini.loadSkin(url);
+  skinViewerHome.loadSkin(url);
 }
 
 async function loadCurrentSkin() {
@@ -805,13 +838,19 @@ document.getElementById('skin-search-input').addEventListener('keydown', (e) => 
 document.getElementById('skin-apply-btn').addEventListener('click', async () => {
   if (!foundSkin?.skinUrl) return;
   const statusEl = document.getElementById('skin-status');
-  const result = await window.api.applySkin(foundSkin.skinUrl);
+  const result = await window.api.applySkin(foundSkin.skinUrl, skinApplyMode || undefined);
   if (!result.success) {
     statusEl.textContent = window.i18n.t('skin.error', { message: result.error });
     return;
   }
-  const account = document.getElementById('ms-account-connected').hidden ? null : true;
-  statusEl.textContent = window.i18n.t(account ? 'skin.applied' : 'skin.appliedOfflineNote');
+  if (result.visibility === 'littleskin-manual') {
+    // Pas d'upload par API côté LittleSkin (voir apply-skin dans main.js) —
+    // le fichier est prêt, reste à finir l'envoi sur leur page intégrée.
+    statusEl.textContent = window.i18n.t('skin.appliedLittleskinManual');
+    openLittleskinOverlay('/skinlib/upload');
+    return;
+  }
+  statusEl.textContent = window.i18n.t('skin.applied');
 });
 
 document.getElementById('skin-favorite-btn').addEventListener('click', async () => {
@@ -863,12 +902,80 @@ loadSkinFavorites();
 
 // --- Éditeur de skin plein écran : ouverture/fermeture ---
 const skinEditorOverlay = document.getElementById('skin-editor-overlay');
-document.getElementById('skin-fab').addEventListener('click', () => {
+function openSkinEditor() {
   skinEditorOverlay.classList.add('active');
   loadSkinFavorites();
-});
+  refreshSkinModeSwitch();
+  loadCurrentSkin(); // reflète ce qui est vraiment équipé (LittleSkin inclus)
+}
+document.getElementById('home-skin-preview').addEventListener('click', openSkinEditor);
 document.getElementById('skin-editor-close').addEventListener('click', () => {
   skinEditorOverlay.classList.remove('active');
+});
+
+// --- Switch Premium/Crack : n'a de sens que si un compte Microsoft est
+// connecté (choix entre "vraiment premium" et "tester le rendu crack") —
+// sinon Crack est le seul mode utile, pas de switch à afficher (voir
+// apply-skin dans main.js pour la résolution par défaut).
+let skinApplyMode = null;
+const skinModeSwitchEl = document.getElementById('skin-mode-switch');
+const skinModeMsBtn = document.getElementById('skin-mode-microsoft');
+const skinModeLsBtn = document.getElementById('skin-mode-littleskin');
+
+async function refreshSkinModeSwitch() {
+  const settings = await window.api.getSettings();
+  const hasMs = !!settings.msAccount;
+
+  if (!hasMs) {
+    skinModeSwitchEl.hidden = true;
+    skinApplyMode = null;
+    return;
+  }
+
+  skinModeSwitchEl.hidden = false;
+  skinApplyMode = settings.skinApplyMode === 'littleskin' ? 'littleskin' : 'microsoft';
+  skinModeMsBtn.classList.toggle('active', skinApplyMode === 'microsoft');
+  skinModeLsBtn.classList.toggle('active', skinApplyMode === 'littleskin');
+}
+
+skinModeMsBtn.addEventListener('click', () => {
+  skinApplyMode = 'microsoft';
+  skinModeMsBtn.classList.add('active');
+  skinModeLsBtn.classList.remove('active');
+});
+skinModeLsBtn.addEventListener('click', () => {
+  skinApplyMode = 'littleskin';
+  skinModeLsBtn.classList.add('active');
+  skinModeMsBtn.classList.remove('active');
+});
+
+// --- Page LittleSkin intégrée — connexion/inscription (leur propre page
+// gère ça nativement, pas besoin qu'on gère un login nous-mêmes) et fin de
+// l'envoi manuel d'un skin en mode Crack. Même principe que le navigateur
+// NameMC : on affiche leur site tel quel dans un <webview>. ?lang=en car
+// LittleSkin est en chinois par défaut (site basé en Chine), pas de version
+// française, mais l'anglais est dispo via ce paramètre.
+const littleskinOverlay = document.getElementById('littleskin-overlay');
+const littleskinWebview = document.getElementById('littleskin-webview');
+function openLittleskinOverlay(urlPath) {
+  littleskinWebview.src = `https://littleskin.cn${urlPath}${urlPath.includes('?') ? '&' : '?'}lang=en`;
+  littleskinOverlay.classList.add('active');
+}
+setupWebviewNav(littleskinWebview, document.getElementById('littleskin-back'), document.getElementById('littleskin-forward'));
+// Bibliothèque triée par likes plutôt que la page d'upload — pratique pour
+// parcourir et prendre direct un skin déjà fait par quelqu'un d'autre.
+document.getElementById('littleskin-open-btn').addEventListener('click', () => {
+  openLittleskinOverlay('/skinlib?filter=skin&sort=likes&page=1');
+});
+// Le closet du compte : skins déjà uploadés/ajoutés, avec l'aperçu 3D et le
+// bouton "Apply" pour équiper direct sur le personnage — le vrai raccourci
+// pour rééquiper un skin déjà prêt, sans repasser par la bibliothèque.
+document.getElementById('littleskin-closet-btn').addEventListener('click', () => {
+  openLittleskinOverlay('/user/closet');
+});
+document.getElementById('littleskin-webview-close').addEventListener('click', () => {
+  littleskinOverlay.classList.remove('active');
+  loadCurrentSkin(); // au cas où le skin ait été changé pendant la visite
 });
 
 // --- Navigateur NameMC intégré (juste pour parcourir/copier un pseudo
@@ -888,25 +995,23 @@ document.getElementById('namemc-close').addEventListener('click', () => {
 // Navigation précédent/suivant — boutons + raccourci Alt+Flèches (celui du
 // vrai navigateur ne marche pas ici : le <webview> tourne dans son propre
 // processus invité, il faut écouter ses propres événements clavier).
-const namemcBackBtn = document.getElementById('namemc-back');
-const namemcForwardBtn = document.getElementById('namemc-forward');
-function updateNamemcNavButtons() {
-  namemcBackBtn.disabled = !namemcWebview.canGoBack();
-  namemcForwardBtn.disabled = !namemcWebview.canGoForward();
+// Factorisé : même besoin pour NameMC et LittleSkin.
+function setupWebviewNav(webview, backBtn, forwardBtn) {
+  function update() {
+    backBtn.disabled = !webview.canGoBack();
+    forwardBtn.disabled = !webview.canGoForward();
+  }
+  backBtn.addEventListener('click', () => { if (webview.canGoBack()) webview.goBack(); });
+  forwardBtn.addEventListener('click', () => { if (webview.canGoForward()) webview.goForward(); });
+  webview.addEventListener('did-navigate', update);
+  webview.addEventListener('did-navigate-in-page', update);
+  webview.addEventListener('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown' || !input.alt) return;
+    if (input.key === 'ArrowLeft' && webview.canGoBack()) webview.goBack();
+    else if (input.key === 'ArrowRight' && webview.canGoForward()) webview.goForward();
+  });
 }
-namemcBackBtn.addEventListener('click', () => {
-  if (namemcWebview.canGoBack()) namemcWebview.goBack();
-});
-namemcForwardBtn.addEventListener('click', () => {
-  if (namemcWebview.canGoForward()) namemcWebview.goForward();
-});
-namemcWebview.addEventListener('did-navigate', updateNamemcNavButtons);
-namemcWebview.addEventListener('did-navigate-in-page', updateNamemcNavButtons);
-namemcWebview.addEventListener('before-input-event', (event, input) => {
-  if (input.type !== 'keyDown' || !input.alt) return;
-  if (input.key === 'ArrowLeft' && namemcWebview.canGoBack()) namemcWebview.goBack();
-  else if (input.key === 'ArrowRight' && namemcWebview.canGoForward()) namemcWebview.goForward();
-});
+setupWebviewNav(namemcWebview, document.getElementById('namemc-back'), document.getElementById('namemc-forward'));
 
 // --- Écran Paramètres ---
 const ramSlider = document.getElementById('ram-slider');
