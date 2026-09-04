@@ -27,12 +27,19 @@ html, body {
   border-radius: 16px;
 }
 
-/* Fine bordure façon liquid glass autour de la fenêtre — posée une seule
-   fois sur html (le bord réel de la fenêtre) pour éviter un double anneau
-   avec body. Le reflet intérieur reprend le même langage que .glass-panel. */
-html {
+/* Fine bordure façon liquid glass autour de la fenêtre — sur un élément à
+   part (.window-border-frame, tout en haut du z-index) plutôt que sur html
+   directement : posée sur html, la titlebar (et tout le reste du contenu,
+   peint après le fond d'un ancêtre en CSS) la recouvrait sur le bord du
+   haut, la rendant invisible à cet endroit précis. */
+.window-border-frame {
+  position: fixed;
+  inset: 0;
   border: 1px solid rgba(255,255,255,0.28);
+  border-radius: 16px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+  pointer-events: none;
+  z-index: 999;
 }
 
 .bg-image {
@@ -650,62 +657,57 @@ html {
   padding: 10px 20px;
 }
 
-.checkbox-row {
+/* Grille horizontale de vignettes (mods/shaders/texture packs optionnels)
+   — juste le logo, en grand, sans texte ni case à cocher séparée ; l'état
+   actif se voit au halo doré autour de la vignette elle-même. */
+#addons-mods-list, #addons-shaders-list, #addons-texturepacks-list {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: center; /* le cadre du switch segmenté (FO/Fresh Animations) est plus haut (padding+bordure) que les vignettes seules — sans ça, décalées vers le haut au lieu d'être centrées avec le reste */
   gap: 10px;
-  padding: 8px 0;
-  cursor: pointer;
-}
-.checkbox-row input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: rgba(230,180,80,0.9);
-  cursor: pointer;
-}
-.checkbox-row span { font-size: 14px; }
-.addon-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  object-fit: cover;
-  flex-shrink: 0;
 }
 
-/* Switch segmenté maison (ex: Fabulously Optimized vs Fresh Animations) —
-   pas de radio natif (rond bleu de l'OS, hors thème). */
-.segmented-switch {
-  display: flex;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 14px;
-  padding: 4px;
-  gap: 4px;
-  margin: 8px 0;
+.addon-tile {
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.2s ease, transform 0.15s ease, background 0.2s ease;
 }
-.segmented-switch-btn {
-  flex: 1;
+.addon-tile:hover { background: rgba(255,255,255,0.14); transform: translateY(-2px); }
+.addon-tile.active {
+  border-color: rgba(230,180,80,0.9);
+  background: rgba(230,180,80,0.18);
+}
+.addon-tile-icon { display: block; width: 100%; height: 100%; object-fit: cover; }
+.addon-tile-fallback {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.8);
+}
+
+/* Switch segmenté maison (ex: Fabulously Optimized vs Fresh Animations) —
+   mêmes vignettes que ci-dessus (.addon-tile), juste groupées dans un
+   cadre ; pas de radio natif (rond bleu de l'OS, hors thème).*/
+.segmented-switch {
+  display: flex;
+  flex-wrap: wrap;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 14px;
+  padding: 6px;
   gap: 8px;
-  padding: 8px 10px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: rgba(255,255,255,0.65);
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  margin: 8px 0;
 }
-.segmented-switch-btn:hover { background: rgba(255,255,255,0.1); }
-.segmented-switch-btn.active {
-  background: rgba(230,180,80,0.9);
-  color: #1b1530;
-  font-weight: 600;
-}
-.segmented-switch-btn .addon-icon { width: 20px; height: 20px; }
 
 
 /* Éditeur de skin plein écran — séparé de la nav/glass-panel habituelle,

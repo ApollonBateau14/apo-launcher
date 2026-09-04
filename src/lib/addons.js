@@ -25,15 +25,19 @@ const MOD_ADDONS = [
   // Rend la 2e couche du skin (chapeau, veste, manches...) en vraie
   // géométrie 3D au lieu d'un aplat gonflé — meilleur rendu des skins
   // avec capuche/cheveux qui dépassent, entre autres.
-  { id: '3dskinlayers', name: '3D Skin Layers', kind: 'mod', defaultOn: false },
-  // Charge les skins depuis LittleSkin au lieu de l'API Mojang seule —
-  // rend un skin personnalisé réellement visible aux autres joueurs qui
-  // ont ce mod, même en offline/cracked (pas de compte Microsoft requis).
-  // L'upload du skin lui-même reste manuel (voir menu Skin, mode Crack) :
-  // l'API LittleSkin ne permet pas de l'automatiser.
-  // Config LittleSkin injectée automatiquement à l'installation, voir
-  // installSingleFileAddon plus bas.
-  { id: 'customskinloader', name: 'CustomSkinLoader', kind: 'mod', defaultOn: false }
+  { id: '3dskinlayers', name: '3D Skin Layers', kind: 'mod', defaultOn: false }
+];
+
+// Toujours installé, jamais dans la liste optionnelle ni dans le catalogue
+// affiché (le joueur ne peut pas le désactiver) — charge les skins depuis
+// LittleSkin au lieu de l'API Mojang seule, rend un skin personnalisé
+// réellement visible aux autres joueurs qui ont ce mod, même en
+// offline/cracked (pas de compte Microsoft requis). L'upload du skin
+// lui-même reste manuel (voir menu Skin, mode Crack) : l'API LittleSkin ne
+// permet pas de l'automatiser. Config LittleSkin injectée automatiquement à
+// l'installation, voir installSingleFileAddon plus bas.
+const ALWAYS_ON_ADDONS = [
+  { id: 'customskinloader', name: 'CustomSkinLoader', kind: 'mod' }
 ];
 
 const SHADER_ADDONS = [
@@ -254,7 +258,9 @@ async function installEnabledAddons(server, enabledIds, onProgress) {
   const selected = catalog.filter((a) => enabledIds.includes(a.id));
 
   const modpackAddons = selected.filter((a) => a.kind === 'modpack');
-  const singleFileAddons = selected.filter((a) => a.kind !== 'modpack');
+  // ALWAYS_ON_ADDONS en plus des optionnels cochés — CustomSkinLoader
+  // s'installe toujours, quoi que le joueur ait choisi dans l'onglet Mods.
+  const singleFileAddons = [...selected.filter((a) => a.kind !== 'modpack'), ...ALWAYS_ON_ADDONS];
 
   for (const addon of modpackAddons) {
     if (onProgress) onProgress({ task: 'addon-check', name: addon.name });

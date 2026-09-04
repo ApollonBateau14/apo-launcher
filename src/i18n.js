@@ -126,6 +126,7 @@ const TRANSLATIONS = {
     'addons.shadersTitle': 'Shaders optionnels',
     'addons.texturepacksTitle': 'Texture packs',
     'addons.hint': "En plus du modpack du serveur — activés côté joueur uniquement.",
+    'addons.disableAll': 'Tout désactiver',
     'addons.saved': 'Enregistré — pris en compte au prochain lancement.',
     'launch.addonCheck': 'Vérification de {{name}}…',
     'launch.addonDownload': 'Téléchargement de {{name}}…'
@@ -249,6 +250,7 @@ const TRANSLATIONS = {
     'addons.shadersTitle': 'Optional shaders',
     'addons.texturepacksTitle': 'Texture packs',
     'addons.hint': 'On top of the server modpack — enabled on your side only.',
+    'addons.disableAll': 'Disable all',
     'addons.saved': 'Saved — applied on next launch.',
     'launch.addonCheck': 'Checking {{name}}…',
     'launch.addonDownload': 'Downloading {{name}}…'

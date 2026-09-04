@@ -82,13 +82,13 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
 
   // Mods/shaders optionnels activés par le joueur (voir addons.js) —
   // installés en plus du modpack du serveur, jamais requis par celui-ci.
-  if (enabledAddons.length > 0) {
-    try {
-      await installEnabledAddons(server, enabledAddons, sendProgress);
-    } catch (err) {
-      launchLog.push(`ERREUR addons optionnels : ${err.message}`);
-      return { success: false, error: t(lang, 'modpackError', err.message) };
-    }
+  // Toujours appelé, même liste vide : addons.js y installe aussi
+  // CustomSkinLoader (ALWAYS_ON_ADDONS), qui n'est plus désactivable.
+  try {
+    await installEnabledAddons(server, enabledAddons, sendProgress);
+  } catch (err) {
+    launchLog.push(`ERREUR addons optionnels : ${err.message}`);
+    return { success: false, error: t(lang, 'modpackError', err.message) };
   }
 
   // Le client Minecraft officiel résout le DNS SRV (_minecraft._tcp.<host>)

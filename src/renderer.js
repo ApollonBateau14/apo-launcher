@@ -440,64 +440,79 @@ function addModalSelect(labelText, options, selected) {
   return { get value() { return state.value; } };
 }
 
-// iconUrl optionnelle (logo Modrinth du mod/shader) — voir addons.js.
-function addAddonIcon(row, iconUrl) {
-  if (!iconUrl) return;
-  const img = document.createElement('img');
-  img.className = 'addon-icon';
-  img.src = iconUrl;
-  img.alt = '';
-  row.appendChild(img);
+// Vignette icône seule (logo Modrinth), sans case ni texte visible — juste
+// le logo en plus grand, l'état actif se voit au halo doré autour. Le nom
+// reste en attribut title (tooltip au survol) pour savoir ce que c'est.
+function createAddonTileEl(labelText, iconUrl) {
+  const tile = document.createElement('button');
+  tile.type = 'button';
+  tile.className = 'addon-tile';
+  tile.title = labelText;
+  if (iconUrl) {
+    const img = document.createElement('img');
+    img.className = 'addon-tile-icon';
+    img.src = iconUrl;
+    img.alt = labelText;
+    tile.appendChild(img);
+  } else {
+    // Pas d'icône Modrinth trouvée (rare) — repli sur 2 lettres plutôt
+    // qu'une vignette vide, en pratique incliquable au bon endroit.
+    const span = document.createElement('span');
+    span.className = 'addon-tile-fallback';
+    span.textContent = labelText.slice(0, 2).toUpperCase();
+    tile.appendChild(span);
+  }
+  return tile;
 }
 
-function addModalCheckbox(container, labelText, checked, iconUrl) {
-  const row = document.createElement('label');
-  row.className = 'checkbox-row';
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.checked = checked;
-  row.appendChild(input);
-  addAddonIcon(row, iconUrl);
-  const span = document.createElement('span');
-  span.textContent = labelText;
-  row.appendChild(span);
-  container.appendChild(row);
-  return input;
+// Remplace l'ancienne case à cocher — même contrat .checked (get/set) que
+// celle-ci, pour rester compatible avec le code appelant (saveEnabledAddons).
+function addAddonTile(container, labelText, checked, iconUrl) {
+  const tile = createAddonTileEl(labelText, iconUrl);
+  let state = checked;
+  tile.classList.toggle('active', state);
+  tile.addEventListener('click', () => {
+    state = !state;
+    tile.classList.toggle('active', state);
+  });
+  container.appendChild(tile);
+  return { get checked() { return state; }, set checked(v) { state = v; tile.classList.toggle('active', v); } };
 }
 
 // Pour des addons mutuellement exclusifs (ex: Fabulously Optimized vs Fresh
 // Animations, incompatibles ensemble) — pas des radios natifs (rond bleu
-// de l'OS, hors thème), un vrai switch segmenté maison à la place.
+// de l'OS, hors thème), les mêmes vignettes qu'au-dessus, groupées.
 // `items`: [{ id, label, iconUrl, checked }]. Renvoie une Map id -> objet
-// avec un getter .checked, pour rester compatible avec le code appelant
-// (même contrat qu'un <input>.checked).
+// avec un getter/setter .checked, pour rester compatible avec le code
+// appelant (même contrat qu'une vignette normale).
 function addModalSegmentedGroup(container, items) {
   const row = document.createElement('div');
   row.className = 'segmented-switch';
 
   let activeId = (items.find((i) => i.checked) || items[0])?.id;
-  const buttons = new Map();
+  const tiles = new Map();
   const proxies = new Map();
 
   function refresh() {
-    buttons.forEach((btn, id) => btn.classList.toggle('active', id === activeId));
+    tiles.forEach((tile, id) => tile.classList.toggle('active', id === activeId));
+  }
+  function setActive(id) {
+    activeId = id;
+    refresh();
   }
 
   items.forEach((item) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'segmented-switch-btn';
-    addAddonIcon(btn, item.iconUrl);
-    const span = document.createElement('span');
-    span.textContent = item.label;
-    btn.appendChild(span);
-    btn.addEventListener('click', () => {
-      activeId = item.id;
-      refresh();
+    const tile = createAddonTileEl(item.label, item.iconUrl);
+    tile.addEventListener('click', () => setActive(item.id));
+    tiles.set(item.id, tile);
+    row.appendChild(tile);
+    // Un setter en plus du getter — active/désactive tout le groupe (id
+    // null = aucun choisi), pour que "Tout désactiver" traite ce switch
+    // exactement comme une vignette normale, même contrat partout.
+    proxies.set(item.id, {
+      get checked() { return activeId === item.id; },
+      set checked(value) { setActive(value ? item.id : null); }
     });
-    buttons.set(item.id, btn);
-    row.appendChild(btn);
-    proxies.set(item.id, { get checked() { return activeId === item.id; } });
   });
 
   refresh();
@@ -507,7 +522,7 @@ function addModalSegmentedGroup(container, items) {
 
 // Rend une liste d'addons (mods/shaders/texture packs) dans un conteneur
 // donné — switch segmenté pour les addons groupés (mutuellement exclusifs),
-// case à cocher simple pour le reste. Renvoie les controls créés, pour que
+// vignette icône seule pour le reste. Renvoie les controls créés, pour que
 // l'appelant puisse relire lesquels sont cochés au moment d'enregistrer.
 function renderAddonList(container, items, enabledIds) {
   container.innerHTML = '';
@@ -533,7 +548,7 @@ function renderAddonList(container, items, enabledIds) {
     groupItems.forEach((item) => controls.push({ item, input: proxies.get(item.id) }));
   }
   standalone.forEach((item) => {
-    controls.push({ item, input: addModalCheckbox(container, item.name, enabledIds.has(item.id), item.iconUrl) });
+    controls.push({ item, input: addAddonTile(container, item.name, enabledIds.has(item.id), item.iconUrl) });
   });
   return controls;
 }
@@ -557,6 +572,13 @@ async function renderAddonsScreen() {
   ];
 }
 
+document.getElementById('addons-disable-all-btn').addEventListener('click', () => {
+  // CustomSkinLoader n'est même plus dans la liste affichée — toujours
+  // installé, plus rien à préserver ici (voir ALWAYS_ON_ADDONS côté main).
+  addonsAllControls.forEach((c) => { c.input.checked = false; });
+  saveEnabledAddons();
+});
+
 let addonsSaveStatusTimer = null;
 function saveEnabledAddons() {
   const ids = addonsAllControls.filter((c) => c.input.checked).map((c) => c.item.id);
@@ -571,17 +593,14 @@ function saveEnabledAddons() {
   addonsSaveStatusTimer = setTimeout(() => { statusEl.textContent = ''; }, 1500);
 }
 
-// Délégation sur l'écran entier plutôt que sur chaque case : les listes sont
-// reconstruites (innerHTML) à chaque ouverture de l'onglet, mais l'écran lui
-// -même ne l'est jamais, donc un seul attachement suffit pour toute sa durée
-// de vie. "change" pour les cases à cocher, "click" pour le switch segmenté
-// (Fabulously Optimized / Fresh Animations) qui n'est pas un <input>.
+// Délégation sur l'écran entier plutôt que sur chaque vignette : les listes
+// sont reconstruites (innerHTML) à chaque ouverture de l'onglet, mais
+// l'écran lui-même ne l'est jamais, donc un seul attachement suffit pour
+// toute sa durée de vie. Vignettes = des <button>, pas des <input>, donc
+// "click" plutôt que "change" pour déclencher la sauvegarde.
 const screenAddonsEl = document.getElementById('screen-addons');
-screenAddonsEl.addEventListener('change', (e) => {
-  if (e.target.matches('input[type="checkbox"]')) saveEnabledAddons();
-});
 screenAddonsEl.addEventListener('click', (e) => {
-  if (e.target.closest('.segmented-switch-btn')) saveEnabledAddons();
+  if (e.target.closest('.addon-tile')) saveEnabledAddons();
 });
 
 // Un seul champ pour IP+port, comme la "connexion rapide" de Minecraft :
