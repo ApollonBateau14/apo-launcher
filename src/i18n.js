@@ -82,6 +82,8 @@ const TRANSLATIONS = {
     'field.manifestUrl': 'Modpack (Modrinth, optionnel)',
 
     'server.editTitle': "Modifier l'IP",
+    'server.clearMods': 'Réinitialiser les mods',
+    'server.clearModsDone': 'Fait — retéléchargés au prochain lancement.',
     'server.deleteButton': 'Supprimer ce serveur',
     'server.deleteWait': 'Patiente {{seconds}}s…',
     'server.deleteConfirmBtn': 'Cliquer pour confirmer la suppression',
@@ -206,6 +208,8 @@ const TRANSLATIONS = {
     'field.manifestUrl': 'Modpack (Modrinth, optional)',
 
     'server.editTitle': 'Edit IP',
+    'server.clearMods': 'Reset mods',
+    'server.clearModsDone': 'Done — re-downloaded on next launch.',
     'server.deleteButton': 'Delete this server',
     'server.deleteWait': 'Wait {{seconds}}s…',
     'server.deleteConfirmBtn': 'Click to confirm deletion',

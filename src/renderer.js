@@ -653,6 +653,27 @@ async function openEditServerModal(server) {
   const loaderSelect = addModalSelect(window.i18n.t('field.loader'), ['vanilla', 'fabric', 'forge', 'neoforge'], server.loader);
   const manifestInput = addModalField(window.i18n.t('field.manifestUrl'), { value: server.manifestUrl || '', placeholder: 'fabulously-optimized, .mrpack, ou manifest.json' });
 
+  // Dépannage : vide le dossier mods/ du serveur, retéléchargé en entier au
+  // prochain lancement — utile si un fichier s'est corrompu/mal téléchargé
+  // (vu en vrai : un mod à moitié téléchargé faisait planter Fabric au
+  // chargement, resynchroniser depuis zéro a réglé le problème).
+  const clearModsRow = document.createElement('div');
+  clearModsRow.className = 'btn-row';
+  const clearModsBtn = document.createElement('button');
+  clearModsBtn.className = 'btn';
+  clearModsBtn.textContent = window.i18n.t('server.clearMods');
+  const clearModsStatus = document.createElement('p');
+  clearModsStatus.className = 'hint';
+  clearModsBtn.addEventListener('click', async () => {
+    clearModsBtn.disabled = true;
+    await window.api.clearServerMods(server.id);
+    clearModsBtn.disabled = false;
+    clearModsStatus.textContent = window.i18n.t('server.clearModsDone');
+  });
+  clearModsRow.appendChild(clearModsBtn);
+  modalFields.appendChild(clearModsRow);
+  modalFields.appendChild(clearModsStatus);
+
   // Pas de popup système (confirm()) — le bouton lui-même se transforme en
   // décompte de 3s avant de devenir cliquable pour de vrai, façon "tiens le
   // bouton enfoncé" mais sans dépendre d'un maintien de clic précis.

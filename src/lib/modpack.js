@@ -153,7 +153,23 @@ function extractOverrides(zip, gameDir) {
         const relative = entry.entryName.slice(prefix.length);
         const dest = path.join(gameDir, relative);
         fs.mkdirSync(path.dirname(dest), { recursive: true });
-        fs.writeFileSync(dest, entry.getData());
+        try {
+          // Certains outils (dont Euphoria Patcher) laissent leurs fichiers
+          // générés en lecture seule — Windows refuse l'écriture par-dessus
+          // (EPERM) sans lever d'abord ce flag, même si rien d'autre ne
+          // l'a le fichier ouvert.
+          if (fs.existsSync(dest)) fs.chmodSync(dest, 0o666);
+          fs.writeFileSync(dest, entry.getData());
+        } catch (err) {
+          // Vraiment verrouillé par un autre process (Minecraft encore
+          // ouvert, antivirus...) : on saute ce fichier plutôt que de faire
+          // planter tout le lancement pour un seul fichier de config.
+          if (err.code === 'EPERM' || err.code === 'EBUSY') {
+            console.warn(`Override ignoré (verrouillé) : ${relative} — ${err.message}`);
+          } else {
+            throw err;
+          }
+        }
       });
   }
 }

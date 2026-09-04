@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const Store = require('electron-store');
 const { pingServer, checkOnlineMode } = require('./src/lib/serverPing');
-const { checkModpackUpdate } = require('./src/lib/modpack');
+const { checkModpackUpdate, getModsDir } = require('./src/lib/modpack');
 const { launchGame, getGameDir } = require('./src/lib/launcher');
 const launchLog = require('./src/lib/launchLog');
 const discordPresence = require('./src/lib/discordPresence');
@@ -667,6 +667,18 @@ ipcMain.handle('open-game-folder', () => {
   const dir = getGameDir(server.id);
   fs.mkdirSync(dir, { recursive: true });
   shell.openPath(dir);
+  return true;
+});
+
+// ---- IPC: vider les mods d'un serveur (dépannage — fichier corrompu,
+// mod à moitié téléchargé, etc.) ----
+// Rien à sauvegarder : le prochain lancement retélécharge tout depuis zéro
+// (checkModpackUpdate/syncModpack ne fait que combler ce qui manque).
+ipcMain.handle('clear-server-mods', (_e, serverId) => {
+  const dir = getModsDir(serverId);
+  for (const file of fs.readdirSync(dir)) {
+    fs.rmSync(path.join(dir, file), { recursive: true, force: true });
+  }
   return true;
 });
 
