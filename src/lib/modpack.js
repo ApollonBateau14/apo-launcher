@@ -225,12 +225,37 @@ async function checkModpackUpdate(server) {
   if (mrpackUrl) {
     const { files, zip } = await fetchMrpack(mrpackUrl, server);
     const toDownload = diffFiles(files, gameDir);
-    return { upToDate: toDownload.length === 0, toDownload, gameDir, zip };
+    return { upToDate: toDownload.length === 0, toDownload, files, gameDir, zip };
   }
 
   const files = await fetchCustomManifest(server.manifestUrl);
   const toDownload = diffFiles(files, gameDir);
-  return { upToDate: toDownload.length === 0, toDownload, gameDir };
+  return { upToDate: toDownload.length === 0, toDownload, files, gameDir };
+}
+
+// Retire les fichiers déjà présents dans les dossiers gérés (mods/,
+// resourcepacks/, shaderpacks/...) qui ne font plus partie du modpack
+// actuel — sans ça, changer de pack (ex: MC 26.1.2 -> 1.20.1) laissait les
+// anciens jars à côté des nouveaux : Fabric refusait de charger, les deux
+// versions de Sodium/Lithium/etc. entrant en conflit. diffFiles() ne fait
+// qu'AJOUTER ce qui manque, jamais le ménage — ce que fait cette fonction.
+function pruneOrphanedFiles(files, gameDir) {
+  const expected = new Set(files.map((f) => path.normalize(f.file)));
+  // Dossiers réellement référencés par le pack (en pratique juste "mods/"
+  // pour un .mrpack, mais reste générique) — on ne touche à rien d'autre.
+  const dirs = new Set(files.map((f) => path.dirname(f.file)).filter((d) => d && d !== '.'));
+
+  for (const dir of dirs) {
+    const absDir = path.join(gameDir, dir);
+    if (!fs.existsSync(absDir)) continue;
+    for (const filename of fs.readdirSync(absDir)) {
+      const relative = path.normalize(path.join(dir, filename));
+      const absPath = path.join(absDir, filename);
+      if (!expected.has(relative) && fs.statSync(absPath).isFile()) {
+        fs.rmSync(absPath, { force: true });
+      }
+    }
+  }
 }
 
 async function downloadModpackFile(entry, gameDir, onProgress) {
@@ -250,8 +275,10 @@ async function downloadModpackFile(entry, gameDir, onProgress) {
 // Vérifie et télécharge tout ce qui manque/a changé pour ce serveur, puis
 // (pour un .mrpack) réécrit les overrides. Appelé avant le lancement du jeu.
 async function syncModpack(server, onProgress) {
-  const { toDownload, gameDir, skipped, zip } = await checkModpackUpdate(server);
+  const { toDownload, files, gameDir, skipped, zip } = await checkModpackUpdate(server);
   if (skipped) return { downloaded: 0 };
+
+  pruneOrphanedFiles(files, gameDir);
 
   for (const entry of toDownload) {
     if (onProgress) onProgress({ file: entry.file, total: toDownload.length });

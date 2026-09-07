@@ -211,7 +211,11 @@ async function loadServerList() {
 
   servers.forEach((server) => {
     const card = document.createElement('div');
-    card.className = 'server-card' + (server.id === settings.selectedServerId ? ' selected' : '');
+    // Contour rose animé pour le serveur communautaire par défaut — le
+    // distingue visuellement des serveurs perso dans la liste.
+    card.className = 'server-card'
+      + (server.id === 'femboyserver' ? ' server-card-femboy' : '')
+      + (server.id === settings.selectedServerId ? ' selected' : '');
     card.draggable = true;
     card.dataset.serverId = server.id;
 
@@ -674,51 +678,57 @@ async function openEditServerModal(server) {
   modalFields.appendChild(clearModsRow);
   modalFields.appendChild(clearModsStatus);
 
-  // Pas de popup système (confirm()) — le bouton lui-même se transforme en
-  // décompte de 3s avant de devenir cliquable pour de vrai, façon "tiens le
-  // bouton enfoncé" mais sans dépendre d'un maintien de clic précis.
-  const deleteBtn = document.createElement('button');
-  deleteBtn.className = 'modal-delete-btn';
-  deleteBtn.textContent = window.i18n.t('server.deleteButton');
-  const deleteErrorEl = document.createElement('p');
-  deleteErrorEl.className = 'hint';
-
-  let armed = false;
-  deleteBtn.addEventListener('click', async () => {
-    if (!armed) {
-      deleteBtn.disabled = true;
-      let remaining = 3;
-      deleteBtn.textContent = window.i18n.t('server.deleteWait', { seconds: remaining });
-      const interval = setInterval(() => {
-        remaining -= 1;
-        if (remaining <= 0) {
-          clearInterval(interval);
-          armed = true;
-          deleteBtn.disabled = false;
-          deleteBtn.textContent = window.i18n.t('server.deleteConfirmBtn');
-        } else {
-          deleteBtn.textContent = window.i18n.t('server.deleteWait', { seconds: remaining });
-        }
-      }, 1000);
-      return;
-    }
-
-    const result = await window.api.removeServer(server.id);
-    if (!result.success) {
-      deleteErrorEl.textContent = result.error;
-      return;
-    }
-    closeModal();
-    await loadServerList();
-    refreshServerStatus();
-  });
   // Pas de bouton Annuler ici (cliquer en dehors du modal ferme déjà tout
   // pareil) — Enregistrer déplacé à côté de Supprimer plutôt que tout seul
   // en bas, remis à sa place habituelle par closeModal() en repartant.
   modalCancelBtn.hidden = true;
   const deleteSaveRow = document.createElement('div');
   deleteSaveRow.className = 'btn-row';
-  deleteSaveRow.appendChild(deleteBtn);
+  const deleteErrorEl = document.createElement('p');
+  deleteErrorEl.className = 'hint';
+
+  // Serveur communautaire par défaut : pas de bouton Supprimer du tout
+  // (voir UNDELETABLE_SERVER_IDS côté main.js, vérifié là-bas aussi) —
+  // Enregistrer prend alors toute la ligne à lui seul.
+  if (server.id !== 'femboyserver') {
+    // Pas de popup système (confirm()) — le bouton lui-même se transforme
+    // en décompte de 3s avant de devenir cliquable pour de vrai, façon
+    // "tiens le bouton enfoncé" mais sans dépendre d'un maintien de clic précis.
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'modal-delete-btn';
+    deleteBtn.textContent = window.i18n.t('server.deleteButton');
+
+    let armed = false;
+    deleteBtn.addEventListener('click', async () => {
+      if (!armed) {
+        deleteBtn.disabled = true;
+        let remaining = 3;
+        deleteBtn.textContent = window.i18n.t('server.deleteWait', { seconds: remaining });
+        const interval = setInterval(() => {
+          remaining -= 1;
+          if (remaining <= 0) {
+            clearInterval(interval);
+            armed = true;
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = window.i18n.t('server.deleteConfirmBtn');
+          } else {
+            deleteBtn.textContent = window.i18n.t('server.deleteWait', { seconds: remaining });
+          }
+        }, 1000);
+        return;
+      }
+
+      const result = await window.api.removeServer(server.id);
+      if (!result.success) {
+        deleteErrorEl.textContent = result.error;
+        return;
+      }
+      closeModal();
+      await loadServerList();
+      refreshServerStatus();
+    });
+    deleteSaveRow.appendChild(deleteBtn);
+  }
   deleteSaveRow.appendChild(modalSaveBtn);
   modalFields.appendChild(deleteSaveRow);
   modalFields.appendChild(deleteErrorEl);

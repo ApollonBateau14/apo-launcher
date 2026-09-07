@@ -19,13 +19,16 @@
 
   <!-- Barre de titre custom (fenêtre sans bordure) -->
   <div class="titlebar" id="titlebar">
-    <button class="mute-btn" id="mute-btn" data-i18n-title="mute.mute">
-      <img src="assets/cd-icon.png" alt="" class="mute-icon" />
-    </button>
+    <img src="assets/logo.png" alt="" class="titlebar-logo" />
     <div class="spacer"></div>
     <button class="win-btn" id="minimize-btn">─</button>
     <button class="win-btn close" id="close-btn">✕</button>
   </div>
+
+  <!-- CD musique — en bas à droite (position fixe, plus dans la titlebar). -->
+  <button class="mute-btn" id="mute-btn" data-i18n-title="mute.mute">
+    <img src="assets/cd-icon.png" alt="" class="mute-icon" />
+  </button>
 
   <!-- Aperçu du skin actuel, direct dans le menu — même viewer que
        l'éditeur (voir loadSkinEverywhere dans renderer.js, qui met les deux

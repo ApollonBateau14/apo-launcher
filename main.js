@@ -21,6 +21,23 @@ const { getReleaseVersions } = require('./src/lib/javaRuntime');
 // Complète/adapte cette liste avec tes vrais serveurs et leurs manifests GitHub.
 // L'IP/port réels NE sont PAS ici — voir servers.ip.json (jamais commité, cf. .gitignore).
 const SERVERS_META = [
+  // En tête de liste par défaut sur une install neuve — modpack/version/
+  // loader intégrés au code (mis à jour ici à chaque nouvelle version du
+  // pack). L'IP reste volontairement vide : privée, jamais commitée,
+  // chaque joueur la renseigne à la main (engrenage) ou via
+  // servers.ip.json en local pour une install pré-configurée.
+  {
+    id: 'femboyserver',
+    name: 'FemboyServer',
+    description: '',
+    loader: 'fabric',
+    mcVersion: '1.20.1',
+    loaderVersion: '',
+    manifestUrl: 'https://github.com/ApollonBateau14/apo-launcher/releases/download/femboyserver-modpack-v2/FemboyServ_modpack-3.1.5.mrpack',
+    icon: '',
+    ip: '',
+    port: 25565
+  },
   // Serveur public connu de tous — pas de risque à le donner par défaut à
   // n'importe qui qui installe l'appli (contrairement à un serveur privé
   // dont l'IP fuiterait sans que la personne ait rien demandé). Un serveur
@@ -121,9 +138,10 @@ const store = new Store({
     ramMb: 4096,
     musicVolume: 10,
     language: 'en',
-    // Fabulously Optimized et Fresh Animations sont mutuellement exclusifs
-    // (voir addons.js) — un seul activé par défaut.
-    enabledAddons: ['fabulously-optimized'],
+    // Aucun mod optionnel actif par défaut (l'onglet Mods reste à cocher
+    // soi-même) — Fabulously Optimized et Fresh Animations, entre autres,
+    // sont mutuellement exclusifs (voir addons.js) une fois activés.
+    enabledAddons: [],
     selectedServerId: SERVERS_META[0]?.id || '',
     removedServerIds: []
   }
@@ -475,7 +493,15 @@ ipcMain.handle('reorder-servers', (_e, orderedIds) => {
 });
 
 // ---- IPC: supprimer un serveur (persistant même pour ceux définis dans le code) ----
+// Serveur communautaire par défaut — jamais supprimable (un ami qui clique
+// par erreur ne doit pas se retrouver sans ce serveur, sans savoir comment
+// le récupérer). Vérifié ici aussi, pas juste côté UI (bouton caché).
+const UNDELETABLE_SERVER_IDS = new Set(['femboyserver']);
+
 ipcMain.handle('remove-server', (_e, serverId) => {
+  if (UNDELETABLE_SERVER_IDS.has(serverId)) {
+    return { success: false, error: t(lang(), 'cantDeleteBuiltinServer') };
+  }
   const servers = store.get('servers', []);
   if (servers.length <= 1) {
     return { success: false, error: t(lang(), 'cantDeleteLastServer') };

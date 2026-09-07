@@ -105,6 +105,13 @@ html, body {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
 }
 .titlebar .spacer { flex: 1; }
+.titlebar-logo {
+  -webkit-app-region: no-drag;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  pointer-events: none;
+}
 .win-btn {
   -webkit-app-region: no-drag;
   background: none;
@@ -120,7 +127,9 @@ html, body {
 .win-btn:hover { background: rgba(255,255,255,0.2); }
 
 .mute-btn {
-  -webkit-app-region: no-drag;
+  position: fixed;
+  bottom: 34px; /* juste au-dessus du numéro de version (bottom:10px) */
+  right: 14px;
   background: none;
   border: none;
   padding: 0;
@@ -130,6 +139,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 6;
   transition: transform 0.2s ease;
 }
 .mute-btn:hover { transform: scale(1.08); }
@@ -162,10 +172,24 @@ html, body {
 }
 
 .logo {
+  position: relative;
   font-size: 26px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  text-shadow: 0 2px 20px rgba(0,0,0,0.4);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.75), 0 2px 20px rgba(0,0,0,0.4);
+  z-index: 1; /* au-dessus de la zone d'ombre ci-dessous */
+}
+/* Vraie zone d'ombre derrière le texte plutôt qu'un simple text-shadow —
+   le fond forêt est trop chargé par endroits pour qu'un liseré fin suffise
+   à détacher le blanc. Tache sombre floue centrée sur le texte, pas un
+   bloc net. */
+.logo::before {
+  content: '';
+  position: absolute;
+  inset: -18px -40px;
+  background: radial-gradient(ellipse, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 72%);
+  z-index: -1;
+  pointer-events: none;
 }
 
 /* Décoration purement visuelle dans le coin haut-droit (branche + arbre,
@@ -446,6 +470,36 @@ html, body {
 .server-card.selected {
   background: rgba(230,180,80,0.25);
   border-color: rgba(240,200,120,0.6);
+}
+
+/* Serveur communautaire par défaut — contour rose dégradé animé (pas une
+   simple couleur unie) pour le distinguer des serveurs perso dans la
+   liste. Double fond (padding-box + border-box) : technique classique pour
+   un "gradient border" tout en gardant le fond normal de la carte intact. */
+.server-card.server-card-femboy {
+  border-width: 3px;
+  border-color: transparent;
+  background:
+    linear-gradient(rgba(255,255,255,0.08), rgba(255,255,255,0.08)) padding-box,
+    linear-gradient(120deg, rgba(219,39,119,0.95), rgba(255,140,190,0.4), rgba(219,39,119,0.95)) border-box;
+  background-size: 100% 100%, 220% 220%;
+  animation: femboy-border-wave 6s ease-in-out infinite;
+}
+.server-card.server-card-femboy:hover {
+  background:
+    linear-gradient(rgba(255,255,255,0.14), rgba(255,255,255,0.14)) padding-box,
+    linear-gradient(120deg, rgba(219,39,119,1), rgba(255,140,190,0.5), rgba(219,39,119,1)) border-box;
+  background-size: 100% 100%, 220% 220%;
+}
+.server-card.server-card-femboy.selected {
+  background:
+    linear-gradient(rgba(230,180,80,0.25), rgba(230,180,80,0.25)) padding-box,
+    linear-gradient(120deg, rgba(219,39,119,1), rgba(255,140,190,0.55), rgba(219,39,119,1)) border-box;
+  background-size: 100% 100%, 220% 220%;
+}
+@keyframes femboy-border-wave {
+  0%, 100% { background-position: 0 0, 0% 50%; }
+  50% { background-position: 0 0, 100% 50%; }
 }
 .server-icon {
   flex-shrink: 0;

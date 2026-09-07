@@ -19,7 +19,7 @@ const { downloadAndVerify } = require('./download');
 // ensemble (constaté en jeu — comme le doublon Iris avant lui) : même
 // `group` = mutuellement exclusifs côté UI (radio, pas cases à cocher).
 const MOD_ADDONS = [
-  { id: 'fabulously-optimized', name: 'Fabulously Optimized', kind: 'modpack', defaultOn: true, group: 'main-pack' },
+  { id: 'fabulously-optimized', name: 'Fabulously Optimized', kind: 'modpack', defaultOn: false, group: 'main-pack' },
   { id: 'fresh-animations', name: 'Fresh Animations', kind: 'resourcepack', defaultOn: false, group: 'main-pack' },
   { id: 'xaeros-minimap', name: "Minimap (Xaero's)", kind: 'mod', defaultOn: false },
   // Rend la 2e couche du skin (chapeau, veste, manches...) en vraie
@@ -254,8 +254,15 @@ function hasModWithPrefix(gameDir, prefixes) {
 // et on se retrouve avec deux Iris = crash au lancement.
 async function installEnabledAddons(server, enabledIds, onProgress) {
   const gameDir = getGameDir(server.id);
+  // Un serveur qui impose déjà son propre modpack (server.manifestUrl)
+  // ignore les mods optionnels cochés dans l'onglet Mods — les ajouter
+  // par-dessus un pack déjà complet et curé crée des doublons/conflits
+  // (deux Fabric API, deux Iris...), voir la mise en garde en haut de ce
+  // fichier. CustomSkinLoader reste installé quand même (ALWAYS_ON_ADDONS),
+  // lui n'entre jamais en conflit avec le contenu d'un modpack.
+  const effectiveIds = server.manifestUrl ? [] : enabledIds;
   const catalog = [...MOD_ADDONS, ...SHADER_ADDONS, ...TEXTURE_PACK_ADDONS];
-  const selected = catalog.filter((a) => enabledIds.includes(a.id));
+  const selected = catalog.filter((a) => effectiveIds.includes(a.id));
 
   const modpackAddons = selected.filter((a) => a.kind === 'modpack');
   // ALWAYS_ON_ADDONS en plus des optionnels cochés — CustomSkinLoader
@@ -271,7 +278,7 @@ async function installEnabledAddons(server, enabledIds, onProgress) {
     });
   }
 
-  const hasShaderSelected = SHADER_ADDONS.some((s) => enabledIds.includes(s.id));
+  const hasShaderSelected = SHADER_ADDONS.some((s) => effectiveIds.includes(s.id));
   const shaderLoaderId = SHADER_LOADER_BY_LOADER[server.loader];
   if (hasShaderSelected && shaderLoaderId && !hasModWithPrefix(gameDir, ['iris-', 'oculus-'])) {
     singleFileAddons.push({ id: shaderLoaderId, name: shaderLoaderId, kind: 'mod' });
