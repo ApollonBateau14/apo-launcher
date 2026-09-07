@@ -32,6 +32,24 @@ function getGameDir(serverId) {
   return path.join(app.getPath('userData'), 'game', serverId);
 }
 
+// Marqueur "ce serveur a déjà été synchronisé au moins une fois" — sert à
+// distinguer le tout premier lancement (où l'on installe le modpack sans
+// qu'on ait à demander) des suivants (où on ne retélécharge plus rien tout
+// seul, voir hasSyncedBefore()/markSynced() plus bas).
+function getSyncMarkerPath(serverId) {
+  return path.join(getGameDir(serverId), '.modpack-synced');
+}
+
+function hasSyncedBefore(serverId) {
+  return fs.existsSync(getSyncMarkerPath(serverId));
+}
+
+function markSynced(serverId) {
+  const gameDir = getGameDir(serverId);
+  fs.mkdirSync(gameDir, { recursive: true });
+  fs.writeFileSync(getSyncMarkerPath(serverId), new Date().toISOString());
+}
+
 function getModsDir(serverId) {
   // Un dossier de mods séparé par serveur, pour ne jamais mélanger deux modpacks.
   const dir = path.join(getGameDir(serverId), 'mods');
@@ -287,7 +305,15 @@ async function syncModpack(server, onProgress) {
 
   if (zip) extractOverrides(zip, gameDir);
 
+  markSynced(server.id);
   return { downloaded: toDownload.length };
 }
 
-module.exports = { checkModpackUpdate, syncModpack, getModsDir, getGameDir, resolveModrinthProject };
+module.exports = {
+  checkModpackUpdate,
+  syncModpack,
+  getModsDir,
+  getGameDir,
+  resolveModrinthProject,
+  hasSyncedBefore
+};

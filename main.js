@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const Store = require('electron-store');
 const { pingServer, checkOnlineMode } = require('./src/lib/serverPing');
-const { checkModpackUpdate, getModsDir } = require('./src/lib/modpack');
+const { checkModpackUpdate, getModsDir, syncModpack } = require('./src/lib/modpack');
 const { launchGame, getGameDir } = require('./src/lib/launcher');
 const launchLog = require('./src/lib/launchLog');
 const discordPresence = require('./src/lib/discordPresence');
@@ -698,14 +698,36 @@ ipcMain.handle('open-game-folder', () => {
 
 // ---- IPC: vider les mods d'un serveur (dépannage — fichier corrompu,
 // mod à moitié téléchargé, etc.) ----
-// Rien à sauvegarder : le prochain lancement retélécharge tout depuis zéro
-// (checkModpackUpdate/syncModpack ne fait que combler ce qui manque).
+// Ne fait que vider le dossier — depuis que le lancement ne resynchronise
+// plus tout seul, il faut ensuite cliquer "Vérifier les mises à jour du
+// modpack" (sync-server-mods) pour retélécharger.
 ipcMain.handle('clear-server-mods', (_e, serverId) => {
   const dir = getModsDir(serverId);
   for (const file of fs.readdirSync(dir)) {
     fs.rmSync(path.join(dir, file), { recursive: true, force: true });
   }
   return true;
+});
+
+// ---- IPC: (re)synchroniser à la main le modpack d'un serveur (paramètres
+// du serveur, bouton "Vérifier les mises à jour du modpack") ----
+// Depuis que le lancement ne resynchronise plus tout seul après le tout
+// premier lancement (voir launcher.js/hasSyncedBefore), c'est le SEUL
+// endroit qui retélécharge/complète mods/ — un mod retiré à la main reste
+// donc retiré tant qu'on ne clique pas explicitement ici.
+ipcMain.handle('sync-server-mods', async (_e, serverId) => {
+  const servers = store.get('servers', []);
+  const server = servers.find((s) => s.id === serverId);
+  if (!server) return { success: false, error: t(lang(), 'noServerSelected') };
+  const win = BrowserWindow.getAllWindows()[0];
+  try {
+    const result = await syncModpack(server, (fileProgress) => {
+      if (win) win.webContents.send('modpack-sync-progress', fileProgress);
+    });
+    return { success: true, downloaded: result.downloaded };
+  } catch (err) {
+    return { success: false, error: t(lang(), 'modpackError', err.message) };
+  }
 });
 
 // ---- IPC: auto-update réel (electron-updater, via GitHub Releases) ----

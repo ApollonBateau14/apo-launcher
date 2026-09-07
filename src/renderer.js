@@ -678,6 +678,31 @@ async function openEditServerModal(server) {
   modalFields.appendChild(clearModsRow);
   modalFields.appendChild(clearModsStatus);
 
+  // Resynchronise le modpack à la main (télécharge ce qui manque/a changé,
+  // retire ce qui n'est plus dans le pack). Depuis que le lancement ne le
+  // fait plus tout seul après le tout premier lancement, c'est le SEUL
+  // moyen de remettre mods/ à jour — un mod retiré à la main (ex: buggé)
+  // reste donc retiré tant qu'on ne clique pas ici explicitement.
+  const syncModsRow = document.createElement('div');
+  syncModsRow.className = 'btn-row';
+  const syncModsBtn = document.createElement('button');
+  syncModsBtn.className = 'btn';
+  syncModsBtn.textContent = window.i18n.t('server.syncMods');
+  const syncModsStatus = document.createElement('p');
+  syncModsStatus.className = 'hint';
+  syncModsBtn.addEventListener('click', async () => {
+    syncModsBtn.disabled = true;
+    syncModsStatus.textContent = window.i18n.t('server.syncModsRunning');
+    const result = await window.api.syncServerMods(server.id);
+    syncModsBtn.disabled = false;
+    syncModsStatus.textContent = result.success
+      ? window.i18n.t('server.syncModsDone', { count: result.downloaded })
+      : window.i18n.t('server.syncModsError', { error: result.error });
+  });
+  syncModsRow.appendChild(syncModsBtn);
+  modalFields.appendChild(syncModsRow);
+  modalFields.appendChild(syncModsStatus);
+
   // Pas de bouton Annuler ici (cliquer en dehors du modal ferme déjà tout
   // pareil) — Enregistrer déplacé à côté de Supprimer plutôt que tout seul
   // en bas, remis à sa place habituelle par closeModal() en repartant.

@@ -21,6 +21,11 @@ contextBridge.exposeInMainWorld('api', {
   setEnabledAddons: (ids) => ipcRenderer.invoke('set-enabled-addons', ids),
   openGameFolder: () => ipcRenderer.invoke('open-game-folder'),
   clearServerMods: (serverId) => ipcRenderer.invoke('clear-server-mods', serverId),
+  syncServerMods: (serverId) => ipcRenderer.invoke('sync-server-mods', serverId),
+  onModpackSyncProgress: (callback) => {
+    ipcRenderer.removeAllListeners('modpack-sync-progress');
+    ipcRenderer.on('modpack-sync-progress', (_e, progress) => callback(progress));
+  },
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   copyLogs: () => ipcRenderer.invoke('copy-logs'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),

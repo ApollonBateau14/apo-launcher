@@ -9,7 +9,7 @@
 const { Client, Authenticator } = require('minecraft-launcher-core');
 const fs = require('fs');
 const { BrowserWindow } = require('electron');
-const { getGameDir, syncModpack } = require('./modpack');
+const { getGameDir, syncModpack, hasSyncedBefore } = require('./modpack');
 const { ensureJava } = require('./javaRuntime');
 const { getLoaderLaunchOptions } = require('./loaderProfile');
 const { installEnabledAddons } = require('./addons');
@@ -68,13 +68,19 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
     return { success: false, error: t(lang, 'loaderError', server.loader, err.message) };
   }
 
-  // Télécharge/vérifie les mods du modpack (manifestUrl) avant le lancement.
-  // Sans manifestUrl configuré, ne fait rien (mods déjà présents à la main).
+  // Télécharge/vérifie les mods du modpack (manifestUrl) UNIQUEMENT au tout
+  // premier lancement de ce serveur (dossier jamais synchronisé). Les
+  // lancements suivants ne retouchent plus mods/ tout seuls : si un mod pose
+  // problème, on peut le retirer à la main (ou via "Réinitialiser les mods")
+  // sans qu'il revienne au lancement suivant — seul le bouton "Vérifier les
+  // mises à jour du modpack" (paramètres du serveur) relance une synchro.
   try {
-    sendProgress({ task: 'modpack-check' });
-    await syncModpack(server, (fileProgress) => {
-      sendProgress({ task: 'modpack-download', ...fileProgress });
-    });
+    if (!hasSyncedBefore(server.id)) {
+      sendProgress({ task: 'modpack-check' });
+      await syncModpack(server, (fileProgress) => {
+        sendProgress({ task: 'modpack-download', ...fileProgress });
+      });
+    }
   } catch (err) {
     launchLog.push(`ERREUR modpack : ${err.message}`);
     return { success: false, error: t(lang, 'modpackError', err.message) };
