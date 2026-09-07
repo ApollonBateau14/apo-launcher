@@ -115,11 +115,15 @@ async function loadSettings() {
     };
   }
 
-  const volume = settings.musicVolume ?? 10;
-  document.getElementById('volume-slider').value = volume;
-  document.getElementById('volume-value').textContent = `${volume} %`;
-  currentMusicVolume = volume / 100;
+  // Plus de curseur de volume dans les Paramètres (le bouton CD en bas à
+  // droite coupe/remet le son) — la valeur sauvegardée reste appliquée.
+  currentMusicVolume = (settings.musicVolume ?? 10) / 100;
   music.volume = currentMusicVolume;
+
+  // Après le premier await : les const/fonctions déclarées plus bas dans ce
+  // fichier sont déjà initialisées (le corps du module a fini de s'exécuter).
+  loadGraphicsPresets(settings.graphicsPreset);
+  setMaxFpsSlider(settings.maxFps ?? 120);
 
   document.getElementById('app-version').textContent = settings.appVersion ? `v${settings.appVersion}` : '';
 
@@ -152,14 +156,6 @@ document.querySelectorAll('.lang-flag-btn').forEach((btn) => {
       refreshServerStatus();
     }
   });
-});
-
-// --- Écran Paramètres : volume musique (aperçu en direct pendant le drag) ---
-const volumeSlider = document.getElementById('volume-slider');
-volumeSlider.addEventListener('input', () => {
-  document.getElementById('volume-value').textContent = `${volumeSlider.value} %`;
-  currentMusicVolume = Number(volumeSlider.value) / 100;
-  music.volume = currentMusicVolume;
 });
 
 // Icône du serveur si définie (server.icon), sinon avatar avec l'initiale
@@ -1106,15 +1102,88 @@ function setupWebviewNav(webview, backBtn, forwardBtn) {
 setupWebviewNav(namemcWebview, document.getElementById('namemc-back'), document.getElementById('namemc-forward'));
 
 // --- Écran Paramètres ---
+// Tout s'enregistre tout seul (plus de bouton Enregistrer) : 'input' met à
+// jour l'affichage pendant qu'on fait glisser, 'change' (= curseur relâché)
+// écrit la valeur, pour ne pas spammer le disque à chaque pixel bougé.
 const ramSlider = document.getElementById('ram-slider');
 ramSlider.addEventListener('input', () => {
   document.getElementById('ram-value').textContent = `${(ramSlider.value / 1024).toFixed(1)} Go`;
 });
+ramSlider.addEventListener('change', () => window.api.setRam(Number(ramSlider.value)));
 
-document.getElementById('save-settings-btn').addEventListener('click', async () => {
-  await window.api.setRam(Number(ramSlider.value));
-  await window.api.setMusicVolume(Number(volumeSlider.value));
-});
+// --- FPS max (indépendant du preset graphique) ---
+// 260 = illimité côté Minecraft, comme dans le menu vidéo du jeu.
+const MAX_FPS_UNLIMITED = 260;
+const maxFpsSlider = document.getElementById('maxfps-slider');
+const maxFpsValueEl = document.getElementById('maxfps-value');
+
+function setMaxFpsSlider(value) {
+  maxFpsSlider.value = value;
+  maxFpsValueEl.textContent = Number(value) >= MAX_FPS_UNLIMITED
+    ? window.i18n.t('settings.maxFpsUnlimited')
+    : value;
+}
+
+maxFpsSlider.addEventListener('input', () => setMaxFpsSlider(maxFpsSlider.value));
+maxFpsSlider.addEventListener('change', () => window.api.setMaxFps(Number(maxFpsSlider.value)));
+
+// --- Presets graphiques Minecraft ---
+// Les ids et les distances de rendu viennent du main (src/lib/gameOptions.js),
+// seuls les libellés sont ici. Sélection enregistrée au clic (comme l'onglet
+// Mods) : pas de bouton Enregistrer à penser pour ça.
+const graphicsPresetRow = document.getElementById('graphics-preset-row');
+const GRAPHICS_PRESET_LABEL_KEYS = {
+  'extra-low': 'graphics.extraLow',
+  low: 'graphics.low',
+  medium: 'graphics.medium',
+  epic: 'graphics.epic',
+  realistic: 'graphics.realistic'
+};
+
+function createPresetBtn(labelKey, detail, detailKey) {
+  const btn = document.createElement('button');
+  btn.className = 'preset-btn';
+  const name = document.createElement('span');
+  name.className = 'preset-btn-name';
+  // data-i18n plutôt que du texte figé : le libellé se retraduit tout seul
+  // si on change de langue pendant que l'écran est ouvert.
+  name.dataset.i18n = labelKey;
+  name.textContent = window.i18n.t(labelKey);
+  const detailEl = document.createElement('span');
+  detailEl.className = 'preset-btn-detail';
+  if (detailKey) {
+    detailEl.dataset.i18n = detailKey;
+    detailEl.textContent = window.i18n.t(detailKey);
+  } else {
+    detailEl.textContent = detail;
+  }
+  btn.append(name, detailEl);
+  return btn;
+}
+
+async function loadGraphicsPresets(selectedId) {
+  const presets = await window.api.getGraphicsPresets();
+  graphicsPresetRow.innerHTML = '';
+
+  // "Perso" en premier : reprend la main sur les réglages vidéo faits en
+  // jeu (sans ça, le preset choisi les réécrit à chaque lancement).
+  const entries = [
+    { id: null, btn: createPresetBtn('graphics.custom', null, 'graphics.customDetail') },
+    ...presets.map((preset) => ({
+      id: preset.id,
+      btn: createPresetBtn(GRAPHICS_PRESET_LABEL_KEYS[preset.id] || preset.id, `${preset.renderDistance} chunks`)
+    }))
+  ];
+
+  for (const entry of entries) {
+    if (entry.id === (selectedId || null)) entry.btn.classList.add('active');
+    entry.btn.addEventListener('click', async () => {
+      entries.forEach((e) => e.btn.classList.toggle('active', e === entry));
+      await window.api.setGraphicsPreset(entry.id);
+    });
+    graphicsPresetRow.appendChild(entry.btn);
+  }
+}
 
 document.getElementById('open-folder-btn').addEventListener('click', () => {
   window.api.openGameFolder();

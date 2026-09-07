@@ -6,6 +6,7 @@ const Store = require('electron-store');
 const { pingServer, checkOnlineMode } = require('./src/lib/serverPing');
 const { checkModpackUpdate, getModsDir, syncModpack } = require('./src/lib/modpack');
 const { launchGame, getGameDir } = require('./src/lib/launcher');
+const { listGraphicsPresets, applyGameOptions } = require('./src/lib/gameOptions');
 const launchLog = require('./src/lib/launchLog');
 const discordPresence = require('./src/lib/discordPresence');
 const { t } = require('./src/lib/backendI18n');
@@ -142,6 +143,12 @@ const store = new Store({
     // soi-même) — Fabulously Optimized et Fresh Animations, entre autres,
     // sont mutuellement exclusifs (voir addons.js) une fois activés.
     enabledAddons: [],
+    // null = on ne touche pas à la qualité graphique du jeu (réglages gérés
+    // en jeu par le joueur). Dès qu'un preset est choisi dans Paramètres,
+    // il est réappliqué à chaque lancement (voir gameOptions.js).
+    graphicsPreset: null,
+    // Limite de FPS, indépendante du preset (260 = illimité côté jeu).
+    maxFps: 120,
     selectedServerId: SERVERS_META[0]?.id || '',
     removedServerIds: []
   }
@@ -432,6 +439,42 @@ ipcMain.handle('set-music-volume', (_e, volumePercent) => {
   return true;
 });
 
+// ---- IPC: preset graphique + FPS max Minecraft (Paramètres) ----
+// La liste (et les distances de rendu) vient de gameOptions.js pour n'avoir
+// qu'un seul endroit à modifier ; le renderer n'ajoute que les libellés.
+ipcMain.handle('get-graphics-presets', () => listGraphicsPresets());
+
+// Écrit dans les dossiers de jeu déjà créés (pour que le choix soit visible
+// même sans relancer le launcher), puis de nouveau au lancement de chaque
+// partie (voir launcher.js) — le jeu réécrit son options.txt en se fermant,
+// donc écrire une seule fois ne suffirait pas.
+function applyGameOptionsToAllServers() {
+  const presetId = store.get('graphicsPreset', null);
+  const maxFps = store.get('maxFps', null);
+  if (!presetId && !maxFps) return;
+  for (const server of store.get('servers', [])) {
+    const dir = getGameDir(server.id);
+    if (!fs.existsSync(dir)) continue;
+    try {
+      applyGameOptions(dir, { presetId, maxFps });
+    } catch (err) {
+      console.warn(`[ApoLauncher] options.txt non modifié pour ${server.id} :`, err.message);
+    }
+  }
+}
+
+ipcMain.handle('set-graphics-preset', (_e, presetId) => {
+  store.set('graphicsPreset', presetId);
+  applyGameOptionsToAllServers();
+  return true;
+});
+
+ipcMain.handle('set-max-fps', (_e, maxFps) => {
+  store.set('maxFps', maxFps);
+  applyGameOptionsToAllServers();
+  return true;
+});
+
 ipcMain.handle('set-language', (_e, lang) => {
   store.set('language', lang);
   return true;
@@ -672,7 +715,9 @@ ipcMain.handle('launch-game', async () => {
   }
   const enabledAddons = store.get('enabledAddons', []);
   const useMicrosoft = !!store.get('msAccount', null);
-  return launchGame({ username, ramMb, server, lang: lang(), enabledAddons, useMicrosoft });
+  const graphicsPreset = store.get('graphicsPreset', null);
+  const maxFps = store.get('maxFps', null);
+  return launchGame({ username, ramMb, server, lang: lang(), enabledAddons, useMicrosoft, graphicsPreset, maxFps });
 });
 
 // ---- IPC: copier les logs du dernier lancement (dépannage) ----

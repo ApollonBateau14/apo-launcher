@@ -10,6 +10,7 @@ const { Client, Authenticator } = require('minecraft-launcher-core');
 const fs = require('fs');
 const { BrowserWindow } = require('electron');
 const { getGameDir, syncModpack, hasSyncedBefore } = require('./modpack');
+const { applyGameOptions } = require('./gameOptions');
 const { ensureJava } = require('./javaRuntime');
 const { getLoaderLaunchOptions } = require('./loaderProfile');
 const { installEnabledAddons } = require('./addons');
@@ -19,7 +20,7 @@ const msAuth = require('./msAuth');
 const launchLog = require('./launchLog');
 const { t } = require('./backendI18n');
 
-async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons = [], useMicrosoft = false }) {
+async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons = [], useMicrosoft = false, graphicsPreset = null, maxFps = null }) {
   launchLog.reset();
 
   // Pseudo requis seulement en offline — connecté avec Microsoft, le pseudo
@@ -39,6 +40,21 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
   // MCLC ne crée pas les dossiers parents manquants avant d'y écrire
   // (plante avec ENOENT au premier lancement). On s'assure qu'il existe.
   fs.mkdirSync(gameDir, { recursive: true });
+
+  // Preset graphique + FPS max choisis dans les paramètres : écrits dans le
+  // options.txt du serveur AVANT que le jeu ne démarre (il ne relit plus le
+  // fichier ensuite). Réappliqués à chaque lancement, donc un réglage vidéo
+  // changé en jeu revient au preset au lancement suivant — c'est voulu : ce
+  // qui est coché dans le launcher est ce qu'on a en jeu.
+  if (graphicsPreset || maxFps) {
+    try {
+      applyGameOptions(gameDir, { presetId: graphicsPreset, maxFps });
+      launchLog.push(`Options vidéo appliquées : preset=${graphicsPreset || 'perso'} maxFps=${maxFps || 'inchangé'}`);
+    } catch (err) {
+      // Pas bloquant : au pire le jeu garde ses réglages précédents.
+      launchLog.push(`Options vidéo non appliquées : ${err.message}`);
+    }
+  }
 
   const sendProgress = (progress) => {
     const win = BrowserWindow.getAllWindows()[0];
