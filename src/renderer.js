@@ -205,12 +205,18 @@ async function loadServerList() {
   const listEl = document.getElementById('server-list');
   listEl.innerHTML = '';
 
+  // Contour animé propre à chaque serveur intégré (rose pour FemboyServer,
+  // mauve/violet pastel pour ApoServer) — les distingue des serveurs perso.
+  const SERVER_CARD_THEMES = {
+    femboyserver: 'server-card-femboy',
+    aposerver: 'server-card-apo'
+  };
+
   servers.forEach((server) => {
     const card = document.createElement('div');
-    // Contour rose animé pour le serveur communautaire par défaut — le
-    // distingue visuellement des serveurs perso dans la liste.
+    const themeClass = SERVER_CARD_THEMES[server.id];
     card.className = 'server-card'
-      + (server.id === 'femboyserver' ? ' server-card-femboy' : '')
+      + (themeClass ? ` ${themeClass}` : '')
       + (server.id === settings.selectedServerId ? ' selected' : '');
     card.draggable = true;
     card.dataset.serverId = server.id;

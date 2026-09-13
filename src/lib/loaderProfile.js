@@ -9,10 +9,11 @@
 // - Forge/NeoForge : télécharge le .jar installeur officiel et le passe à
 //   MCLC (qui sait le traiter nativement via son mécanisme ForgeWrapper).
 //   Nécessite server.loaderVersion renseigné (pas de résolution auto de la
-//   dernière version, contrairement à Fabric). Implémenté selon la doc/le
-//   code de minecraft-launcher-core, mais PAS testé en conditions réelles
-//   (aucun serveur Forge/NeoForge chez nous pour l'instant) — à vérifier le
-//   jour où un tel serveur existe.
+//   dernière version, contrairement à Fabric). Premier vrai serveur NeoForge :
+//   ApoServer (21.1.250 / MC 1.21.1). Son installeur a été vérifié compatible
+//   avec le traitement "Forge moderne" de MCLC (toutes les libs ont une URL,
+//   rien d'embarqué dans maven/), mais le lancement complet reste à valider
+//   en jeu.
 
 const fs = require('fs');
 const path = require('path');

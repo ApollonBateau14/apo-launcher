@@ -39,6 +39,23 @@ const SERVERS_META = [
     ip: '',
     port: 25565
   },
+  // Serveur perso d'Apo, en NeoForge. Même principe que FemboyServer : IP
+  // volontairement vide (privée, jamais commitée), à renseigner à la main.
+  // loaderVersion OBLIGATOIRE pour NeoForge (pas de résolution auto, voir
+  // loaderProfile.js) — doit rester identique à dependencies.neoforge du
+  // .mrpack, sinon assertCompatible() ne dit rien mais le jeu refuse le pack.
+  {
+    id: 'aposerver',
+    name: 'ApoServer',
+    description: '',
+    loader: 'neoforge',
+    mcVersion: '1.21.1',
+    loaderVersion: '21.1.250',
+    manifestUrl: 'https://github.com/ApollonBateau14/apo-launcher/releases/download/aposerver-modpack-v1/ModPackApoServer.mrpack',
+    icon: '',
+    ip: '',
+    port: 25565
+  },
   // Serveur public connu de tous — pas de risque à le donner par défaut à
   // n'importe qui qui installe l'appli (contrairement à un serveur privé
   // dont l'IP fuiterait sans que la personne ait rien demandé). Un serveur
@@ -106,9 +123,8 @@ function buildServersList() {
   };
 
   // Ordre : celui déjà persisté (respecte un réordonnancement manuel fait
-  // dans l'appli) pour tout ce qui existe encore ; un nouveau serveur
-  // ajouté côté code (jamais vu par ce joueur) est ajouté à la fin, dans
-  // l'ordre du code — sans ça, l'ordre repartait de zéro à chaque lancement.
+  // dans l'appli) pour tout ce qui existe encore — sans ça, l'ordre
+  // repartait de zéro à chaque lancement.
   const seen = new Set();
   const ordered = [];
 
@@ -118,9 +134,18 @@ function buildServersList() {
     seen.add(entry.id);
   });
 
-  SERVERS_META.forEach((meta) => {
+  // Serveur ajouté côté code jamais vu par ce joueur : inséré juste après
+  // le dernier serveur du code qui le précède (ex: ApoServer arrive sous
+  // FemboyServer) plutôt qu'en toute fin, sous Hypixel et les serveurs perso.
+  SERVERS_META.forEach((meta, index) => {
     if (seen.has(meta.id) || removedIds.has(meta.id)) return;
-    ordered.push(fromMeta(meta));
+    const precedingIds = new Set(SERVERS_META.slice(0, index).map((m) => m.id));
+    let insertAt = 0;
+    ordered.forEach((entry, i) => {
+      if (precedingIds.has(entry.id)) insertAt = i + 1;
+    });
+    ordered.splice(insertAt, 0, fromMeta(meta));
+    seen.add(meta.id);
   });
 
   return ordered;

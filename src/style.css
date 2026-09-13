@@ -497,7 +497,7 @@ html, body {
     linear-gradient(rgba(255,255,255,0.08), rgba(255,255,255,0.08)) padding-box,
     linear-gradient(120deg, rgba(219,39,119,0.95), rgba(255,140,190,0.4), rgba(219,39,119,0.95)) border-box;
   background-size: 100% 100%, 220% 220%;
-  animation: femboy-border-wave 6s ease-in-out infinite;
+  animation: server-border-wave 6s ease-in-out infinite;
 }
 .server-card.server-card-femboy:hover {
   background:
@@ -511,7 +511,33 @@ html, body {
     linear-gradient(120deg, rgba(219,39,119,1), rgba(255,140,190,0.55), rgba(219,39,119,1)) border-box;
   background-size: 100% 100%, 220% 220%;
 }
-@keyframes femboy-border-wave {
+
+/* ApoServer — même vague animée que FemboyServer, en mauve et violet
+   pastel. Le mauve des bords est un peu plus soutenu que le pastel du
+   milieu : sans ça, le contour se perdait dans le vert clair du wallpaper. */
+.server-card.server-card-apo {
+  border-width: 3px;
+  border-color: transparent;
+  background:
+    linear-gradient(rgba(255,255,255,0.08), rgba(255,255,255,0.08)) padding-box,
+    linear-gradient(120deg, rgba(168,112,170,0.95), rgba(206,186,242,0.85), rgba(168,112,170,0.95)) border-box;
+  background-size: 100% 100%, 220% 220%;
+  animation: server-border-wave 6s ease-in-out infinite;
+}
+.server-card.server-card-apo:hover {
+  background:
+    linear-gradient(rgba(255,255,255,0.14), rgba(255,255,255,0.14)) padding-box,
+    linear-gradient(120deg, rgba(168,112,170,1), rgba(206,186,242,1), rgba(168,112,170,1)) border-box;
+  background-size: 100% 100%, 220% 220%;
+}
+.server-card.server-card-apo.selected {
+  background:
+    linear-gradient(rgba(230,180,80,0.25), rgba(230,180,80,0.25)) padding-box,
+    linear-gradient(120deg, rgba(168,112,170,1), rgba(206,186,242,1), rgba(168,112,170,1)) border-box;
+  background-size: 100% 100%, 220% 220%;
+}
+
+@keyframes server-border-wave {
   0%, 100% { background-position: 0 0, 0% 50%; }
   50% { background-position: 0 0, 100% 50%; }
 }
