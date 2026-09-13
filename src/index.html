@@ -48,10 +48,15 @@
     <div class="logo">Apo Launcher</div>
 
       <div class="glass-panel">
-      <nav class="nav">
+      <!-- Mods pour les serveurs perso ; pour un serveur intégré (modpack
+           imposé), Shaders + Ressources le remplacent — basculé par
+           refreshNavForSelectedServer() selon le serveur choisi. -->
+      <nav class="nav" id="main-nav">
         <button class="nav-item active" data-screen="connexion" data-i18n="nav.connexion">Connexion</button>
         <button class="nav-item" data-screen="play" data-i18n="nav.play">Play</button>
         <button class="nav-item" data-screen="addons" data-i18n="nav.addons">Mods</button>
+        <button class="nav-item" data-screen="shaders" data-i18n="nav.shaders" hidden>Shaders</button>
+        <button class="nav-item" data-screen="resourcepacks" data-i18n="nav.resourcepacks" hidden>Ressources</button>
         <button class="nav-item" data-screen="settings" data-i18n="nav.settings">Paramètres</button>
       </nav>
 
@@ -128,6 +133,20 @@
         <div id="addons-texturepacks-list"></div>
 
         <p class="hint" id="addons-save-status" style="margin-top:12px;"></p>
+      </section>
+
+      <!-- Écrans Shaders / Ressources (serveurs intégrés uniquement) — listes
+           remplies par renderServerContentScreen(), choix propres à chaque serveur. -->
+      <section class="screen" id="screen-shaders">
+        <p class="hint" data-i18n="content.shadersHint"></p>
+        <div class="content-tile-list" id="content-shaders-list"></div>
+        <p class="hint" id="content-shaders-status"></p>
+      </section>
+
+      <section class="screen" id="screen-resourcepacks">
+        <p class="hint" data-i18n="content.resourcepacksHint"></p>
+        <div class="content-tile-list" id="content-resourcepacks-list"></div>
+        <p class="hint" id="content-resourcepacks-status"></p>
       </section>
 
       <!-- Écran Paramètres -->

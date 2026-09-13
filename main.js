@@ -11,6 +11,7 @@ const launchLog = require('./src/lib/launchLog');
 const discordPresence = require('./src/lib/discordPresence');
 const { t } = require('./src/lib/backendI18n');
 const { getCompatibleCatalog } = require('./src/lib/addons');
+const { getServerContentCatalog } = require('./src/lib/serverContent');
 const autoUpdate = require('./src/lib/autoUpdate');
 const msAuth = require('./src/lib/msAuth');
 const skins = require('./src/lib/skins');
@@ -168,6 +169,10 @@ const store = new Store({
     // soi-même) — Fabulously Optimized et Fresh Animations, entre autres,
     // sont mutuellement exclusifs (voir addons.js) une fois activés.
     enabledAddons: [],
+    // Shaders / resource packs choisis pour chaque serveur intégré :
+    // { [serverId]: { shaders: [ids], resourcepacks: [ids] } }. Clé absente
+    // = tout coché (défaut voulu : tout téléchargé, packs équipés en jeu).
+    serverContent: {},
     // null = on ne touche pas à la qualité graphique du jeu (réglages gérés
     // en jeu par le joueur). Dès qu'un preset est choisi dans Paramètres,
     // il est réappliqué à chaque lancement (voir gameOptions.js).
@@ -515,6 +520,22 @@ ipcMain.handle('set-enabled-addons', (_e, ids) => {
   return true;
 });
 
+// ---- IPC: shaders / resource packs du serveur intégré sélectionné ----
+// Choix propres à chaque serveur (store.serverContent[serverId][kind]) —
+// changer de serveur ne touche jamais aux choix faits pour un autre.
+ipcMain.handle('get-server-content', () => {
+  const server = getSelectedServer();
+  return getServerContentCatalog(server.id, store.get('serverContent', {})[server.id]);
+});
+
+ipcMain.handle('set-server-content', (_e, serverId, kind, ids) => {
+  if (kind !== 'shaders' && kind !== 'resourcepacks') return false;
+  const all = store.get('serverContent', {});
+  all[serverId] = { ...all[serverId], [kind]: ids };
+  store.set('serverContent', all);
+  return true;
+});
+
 // ---- IPC: liste des serveurs + sélection ----
 ipcMain.handle('get-servers', () => store.get('servers'));
 
@@ -742,7 +763,8 @@ ipcMain.handle('launch-game', async () => {
   const useMicrosoft = !!store.get('msAccount', null);
   const graphicsPreset = store.get('graphicsPreset', null);
   const maxFps = store.get('maxFps', null);
-  return launchGame({ username, ramMb, server, lang: lang(), enabledAddons, useMicrosoft, graphicsPreset, maxFps });
+  const serverContent = store.get('serverContent', {})[server.id] || {};
+  return launchGame({ username, ramMb, server, lang: lang(), enabledAddons, useMicrosoft, graphicsPreset, maxFps, serverContent });
 });
 
 // ---- IPC: copier les logs du dernier lancement (dépannage) ----

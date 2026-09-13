@@ -11,6 +11,7 @@ const fs = require('fs');
 const { BrowserWindow } = require('electron');
 const { getGameDir, syncModpack, hasSyncedBefore } = require('./modpack');
 const { applyGameOptions } = require('./gameOptions');
+const { hasServerContent, syncServerContent } = require('./serverContent');
 const { ensureJava } = require('./javaRuntime');
 const { getLoaderLaunchOptions } = require('./loaderProfile');
 const { installEnabledAddons } = require('./addons');
@@ -20,7 +21,7 @@ const msAuth = require('./msAuth');
 const launchLog = require('./launchLog');
 const { t } = require('./backendI18n');
 
-async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons = [], useMicrosoft = false, graphicsPreset = null, maxFps = null }) {
+async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons = [], useMicrosoft = false, graphicsPreset = null, maxFps = null, serverContent = {} }) {
   launchLog.reset();
 
   // Pseudo requis seulement en offline — connecté avec Microsoft, le pseudo
@@ -111,6 +112,17 @@ async function launchGame({ username, ramMb, server, lang = 'en', enabledAddons 
   } catch (err) {
     launchLog.push(`ERREUR addons optionnels : ${err.message}`);
     return { success: false, error: t(lang, 'modpackError', err.message) };
+  }
+
+  // Shaders / resource packs du serveur intégré (onglets dédiés). Pas
+  // bloquant : un pack cosmétique qui ne se télécharge pas (Modrinth
+  // indisponible…) ne doit pas empêcher de rejoindre le serveur.
+  if (hasServerContent(server.id)) {
+    try {
+      await syncServerContent(server, serverContent, sendProgress);
+    } catch (err) {
+      launchLog.push(`Shaders/resource packs non synchronisés : ${err.message}`);
+    }
   }
 
   // Le client Minecraft officiel résout le DNS SRV (_minecraft._tcp.<host>)

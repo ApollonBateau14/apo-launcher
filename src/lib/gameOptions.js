@@ -209,4 +209,15 @@ function applyGameOptions(gameDir, { presetId = null, maxFps = null } = {}) {
   return writeGameOptions(gameDir, options);
 }
 
-module.exports = { GRAPHICS_PRESETS, listGraphicsPresets, applyGameOptions };
+// Valeur brute d'une clé de options.txt (null si absente, ou pas encore de
+// fichier) — pour les options qu'il faut fusionner plutôt qu'écraser (ex: la
+// liste resourcePacks, qui contient aussi les packs du joueur et du loader).
+function readGameOption(gameDir, key) {
+  const file = path.join(gameDir, 'options.txt');
+  if (!fs.existsSync(file)) return null;
+  const prefix = `${key}:`;
+  const line = fs.readFileSync(file, 'utf8').split(/\r?\n/).find((l) => l.startsWith(prefix));
+  return line ? line.slice(prefix.length) : null;
+}
+
+module.exports = { GRAPHICS_PRESETS, listGraphicsPresets, applyGameOptions, writeGameOptions, readGameOption };

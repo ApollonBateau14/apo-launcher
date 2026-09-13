@@ -316,6 +316,20 @@ html, body {
   color: #fff;
   border-color: rgba(255,255,255,0.8);
 }
+/* 5 onglets (serveur intégré : Shaders + Ressources à la place de Mods) :
+   un peu plus serré, sinon "Connexion … Paramètres" ne tient plus sur une
+   seule ligne dans la largeur fixe du panneau. */
+.nav.nav-compact { gap: 10px; }
+.nav.nav-compact .nav-item { font-size: 12px; white-space: nowrap; }
+
+/* Onglets Shaders / Ressources : mêmes vignettes que l'onglet Mods. */
+.content-tile-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
 
 .screen { display: none; }
 

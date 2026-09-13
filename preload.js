@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('api', {
   setMaxFps: (maxFps) => ipcRenderer.invoke('set-max-fps', maxFps),
   getAddonCatalog: () => ipcRenderer.invoke('get-addon-catalog'),
   setEnabledAddons: (ids) => ipcRenderer.invoke('set-enabled-addons', ids),
+  getServerContent: () => ipcRenderer.invoke('get-server-content'),
+  setServerContent: (serverId, kind, ids) => ipcRenderer.invoke('set-server-content', serverId, kind, ids),
   openGameFolder: () => ipcRenderer.invoke('open-game-folder'),
   clearServerMods: (serverId) => ipcRenderer.invoke('clear-server-mods', serverId),
   syncServerMods: (serverId) => ipcRenderer.invoke('sync-server-mods', serverId),

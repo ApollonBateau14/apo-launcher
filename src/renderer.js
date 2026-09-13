@@ -46,6 +46,8 @@ function goToScreen(screenName) {
     statusRefreshInterval = setInterval(refreshServerStatus, STATUS_REFRESH_MS);
   } else if (screenName === 'addons') {
     renderAddonsScreen();
+  } else if (screenName === 'shaders' || screenName === 'resourcepacks') {
+    renderServerContentScreen(screenName);
   }
 }
 
@@ -124,6 +126,7 @@ async function loadSettings() {
   // fichier sont déjà initialisées (le corps du module a fini de s'exécuter).
   loadGraphicsPresets(settings.graphicsPreset);
   setMaxFpsSlider(settings.maxFps ?? 120);
+  refreshNavForSelectedServer();
 
   document.getElementById('app-version').textContent = settings.appVersion ? `v${settings.appVersion}` : '';
 
@@ -310,9 +313,13 @@ async function loadServerList() {
       document.querySelectorAll('.server-card').forEach((c) => c.classList.remove('selected'));
       card.classList.add('selected');
       refreshServerStatus();
+      refreshNavForSelectedServer(); // Mods <-> Shaders/Ressources selon le serveur
     });
     listEl.appendChild(card);
   });
+
+  // Le serveur sélectionné a pu changer (ex: celui choisi vient d'être supprimé).
+  refreshNavForSelectedServer();
 }
 
 // --- Modal générique (édition IP / ajout de serveur) ---
@@ -614,6 +621,58 @@ function saveEnabledAddons() {
 const screenAddonsEl = document.getElementById('screen-addons');
 screenAddonsEl.addEventListener('click', (e) => {
   if (e.target.closest('.addon-tile')) saveEnabledAddons();
+});
+
+// --- Onglets Shaders / Ressources (serveurs intégrés) ---
+// Remplacent l'onglet Mods quand le serveur choisi a son propre catalogue
+// (voir src/lib/serverContent.js). Choix enregistrés PAR SERVEUR, appliqués
+// au lancement suivant : packs téléchargés (+ équipés pour les resource
+// packs), shaders juste présents dans le menu du jeu, jamais activés.
+let serverContentState = null; // { serverId, kind, tiles: [{ id, input }] }
+let serverContentStatusTimer = null;
+
+async function refreshNavForSelectedServer() {
+  const { supported } = await window.api.getServerContent();
+  document.querySelector('.nav-item[data-screen="addons"]').hidden = supported;
+  document.querySelector('.nav-item[data-screen="shaders"]').hidden = !supported;
+  document.querySelector('.nav-item[data-screen="resourcepacks"]').hidden = !supported;
+  document.getElementById('main-nav').classList.toggle('nav-compact', supported);
+}
+
+async function renderServerContentScreen(kind) {
+  const content = await window.api.getServerContent();
+  const listEl = document.getElementById(`content-${kind}-list`);
+  const statusEl = document.getElementById(`content-${kind}-status`);
+  listEl.innerHTML = '';
+  clearTimeout(serverContentStatusTimer);
+
+  const items = content[kind] || [];
+  // FemboyServer n'a pas encore sa liste : un mot plutôt qu'un onglet vide.
+  statusEl.textContent = items.length ? '' : window.i18n.t('content.empty');
+  serverContentState = {
+    serverId: content.serverId,
+    kind,
+    tiles: items.map((item) => ({ id: item.id, input: addAddonTile(listEl, item.name, item.enabled, item.iconUrl) }))
+  };
+}
+
+function saveServerContent() {
+  if (!serverContentState) return;
+  const { serverId, kind, tiles } = serverContentState;
+  window.api.setServerContent(serverId, kind, tiles.filter((t) => t.input.checked).map((t) => t.id));
+
+  const statusEl = document.getElementById(`content-${kind}-status`);
+  statusEl.textContent = window.i18n.t('addons.saved');
+  clearTimeout(serverContentStatusTimer);
+  serverContentStatusTimer = setTimeout(() => { statusEl.textContent = ''; }, 1500);
+}
+
+// Même délégation que l'onglet Mods : les vignettes sont recréées à chaque
+// ouverture de l'onglet, les écrans eux-mêmes jamais.
+['shaders', 'resourcepacks'].forEach((kind) => {
+  document.getElementById(`screen-${kind}`).addEventListener('click', (e) => {
+    if (e.target.closest('.addon-tile')) saveServerContent();
+  });
 });
 
 // Un seul champ pour IP+port, comme la "connexion rapide" de Minecraft :

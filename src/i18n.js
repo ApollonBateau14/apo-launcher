@@ -12,6 +12,12 @@ const TRANSLATIONS = {
     'nav.play': 'Play',
     'nav.addons': 'Mods',
     'nav.settings': 'Paramètres',
+    'nav.shaders': 'Shaders',
+    'nav.resourcepacks': 'Ressources',
+
+    'content.shadersHint': 'Cochés = présents dans le menu Shaders en jeu (à activer toi-même).',
+    'content.resourcepacksHint': 'Cochés = téléchargés et équipés automatiquement en jeu.',
+    'content.empty': "Rien pour ce serveur pour l'instant.",
 
     'connexion.pseudoLabel': 'Pseudo',
     'connexion.pseudoPlaceholder': 'Ton pseudo Minecraft',
@@ -150,6 +156,12 @@ const TRANSLATIONS = {
     'nav.play': 'Play',
     'nav.addons': 'Mods',
     'nav.settings': 'Settings',
+    'nav.shaders': 'Shaders',
+    'nav.resourcepacks': 'Resources',
+
+    'content.shadersHint': 'Selected = available in the in-game Shaders menu (enable one yourself).',
+    'content.resourcepacksHint': 'Selected = downloaded and equipped in-game automatically.',
+    'content.empty': 'Nothing for this server yet.',
 
     'connexion.pseudoLabel': 'Username',
     'connexion.pseudoPlaceholder': 'Your Minecraft username',
