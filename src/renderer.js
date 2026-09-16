@@ -1271,6 +1271,16 @@ const updateStatusEl = document.getElementById('update-status');
 const updateActionBtn = document.getElementById('update-action-btn');
 let updateActionMode = null; // 'download' | 'install' | null
 
+// Pastille verte animée à côté des drapeaux (bas-gauche) : visible depuis
+// n'importe quel écran. Elle ne télécharge/installe rien toute seule, elle
+// amène sur Paramètres où se trouvent le bouton et l'état détaillé.
+const updateDot = document.getElementById('update-dot');
+function showUpdateDot(mode) { // 'download' | 'install' | null
+  updateDot.hidden = !mode;
+  if (mode) updateDot.title = window.i18n.t(mode === 'install' ? 'update.dotReady' : 'update.dotAvailable');
+}
+updateDot.addEventListener('click', () => goToScreen('settings'));
+
 updateActionBtn.addEventListener('click', async () => {
   if (updateActionMode === 'download') {
     updateActionBtn.hidden = true;
@@ -1303,9 +1313,11 @@ window.api.onUpdateStatus((status) => {
     updateActionBtn.textContent = window.i18n.t('update.downloadBtn');
     updateActionMode = 'download';
     updateActionBtn.hidden = false;
+    showUpdateDot('download');
   } else if (status.state === 'not-available') {
     updateStatusEl.textContent = window.i18n.t('update.notAvailable', { version: status.current });
     updateActionBtn.hidden = true;
+    showUpdateDot(null);
   } else if (status.state === 'downloading') {
     updateStatusEl.textContent = window.i18n.t('update.downloading', { percent: status.percent });
   } else if (status.state === 'downloaded') {
@@ -1313,11 +1325,20 @@ window.api.onUpdateStatus((status) => {
     updateActionBtn.textContent = window.i18n.t('update.installBtn');
     updateActionMode = 'install';
     updateActionBtn.hidden = false;
+    showUpdateDot('install');
   } else if (status.state === 'error') {
     updateStatusEl.textContent = window.i18n.t('update.error', { message: status.message });
     updateActionBtn.hidden = true;
   }
 });
+
+// Vérification silencieuse au démarrage : sans elle, la pastille
+// n'apparaîtrait qu'après un clic manuel sur « Vérifier les mises à jour »
+// dans Paramètres. En build packagé ce sont les events 'update-status'
+// ci-dessus qui l'allument ; en dev, le retour direct suffit.
+window.api.checkForUpdates()
+  .then((result) => { if (result && result.dev && !result.upToDate) showUpdateDot('download'); })
+  .catch(() => {});
 
 // --- Écran Play : statut serveur ---
 async function refreshServerStatus() {

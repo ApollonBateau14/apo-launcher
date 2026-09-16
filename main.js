@@ -52,7 +52,7 @@ const SERVERS_META = [
     loader: 'neoforge',
     mcVersion: '1.21.1',
     loaderVersion: '21.1.250',
-    manifestUrl: 'https://github.com/ApollonBateau14/apo-launcher/releases/download/aposerver-modpack-v1/ModPackApoServer.mrpack',
+    manifestUrl: 'https://github.com/ApollonBateau14/apo-launcher/releases/download/aposerver-modpack-v2/ModPackApoServer2.mrpack',
     icon: '',
     ip: '',
     port: 25565

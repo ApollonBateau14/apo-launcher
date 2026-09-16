@@ -309,6 +309,14 @@
         <rect width="1" height="2" x="2" fill="#EF4135"/>
       </svg>
     </button>
+    <!-- Mise a jour du launcher disponible : pastille verte animee, cachee
+         tant qu'il n'y a rien a telecharger (voir showUpdateDot cote renderer). -->
+    <button class="update-dot" id="update-dot" hidden>
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 3v11m0 0l-4.5-4.5M12 14l4.5-4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4.5 19.5h15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+    </button>
   </div>
 
   <!-- Contour de la fenêtre — tout en haut du z-index, par-dessus la

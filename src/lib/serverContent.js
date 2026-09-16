@@ -196,14 +196,17 @@ function equipResourcePacks(gameDir, catalog, selectedFilenames, previousFilenam
   const selected = new Set(selectedFilenames);
   const ordered = catalog.resourcepacks.filter((e) => selected.has(e.filename)).map((e) => packId(e.filename));
   const current = parsePackList(readGameOption(gameDir, 'resourcePacks'), ['vanilla']);
-  const incompatible = parsePackList(readGameOption(gameDir, 'incompatibleResourcePacks'), []);
 
+  // On n'écrit QUE resourcePacks. Surtout pas incompatibleResourcePacks :
+  // quand un pack qui y figure est en fait compatible, Minecraft le retire de
+  // cette liste et, dans la même passe, ne le sélectionne PAS (voir
+  // Options.loadSelectedResourcePacks) — les packs revenaient donc désactivés
+  // à chaque lancement, log à l'appui : "Removed resource pack ... from
+  // incompatibility list because it's now compatible". Cette liste reste la
+  // comptabilité du jeu (packs gardés malgré un pack_format d'une autre
+  // version), on n'y touche pas.
   writeGameOptions(gameDir, {
-    resourcePacks: JSON.stringify([...current.filter((id) => !managed.has(id)), ...ordered]),
-    // Le jeu retire au démarrage un pack dont le pack_format vise une autre
-    // version, SAUF s'il est aussi listé ici (= "utiliser quand même") — sans
-    // ça, un pack s'équiperait puis se déséquiperait tout seul en jeu.
-    incompatibleResourcePacks: JSON.stringify([...incompatible.filter((id) => !managed.has(id)), ...ordered])
+    resourcePacks: JSON.stringify([...current.filter((id) => !managed.has(id)), ...ordered])
   });
 }
 

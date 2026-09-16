@@ -135,6 +135,8 @@ const TRANSLATIONS = {
     'update.error': 'Erreur de mise à jour : {{message}}',
     'update.downloadBtn': 'Télécharger',
     'update.installBtn': 'Redémarrer et installer',
+    'update.dotAvailable': 'Mise à jour disponible — clique pour la voir',
+    'update.dotReady': 'Mise à jour prête à installer — clique pour la voir',
 
     'changelog.title': 'Nouveautés — v{{version}}',
     'changelog.noNotes': "Mise à jour installée, pas de notes de version disponibles.",
@@ -279,6 +281,8 @@ const TRANSLATIONS = {
     'update.error': 'Update error: {{message}}',
     'update.downloadBtn': 'Download',
     'update.installBtn': 'Restart and install',
+    'update.dotAvailable': 'Update available — click to see it',
+    'update.dotReady': 'Update ready to install — click to see it',
 
     'changelog.title': "What's new — v{{version}}",
     'changelog.noNotes': 'Update installed, no release notes available.',
